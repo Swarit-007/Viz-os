@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VizOS - Interactive OS Simulation Tool</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <meta name="description" content="Interactive Operating System Simulation Tool with liquid glass design">
+    <meta name="theme-color" content="#667eea">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-cube"></i>
+                    <h1>VizOS</h1>
+                </div>
+                <p class="subtitle">Interactive Operating System Simulation Tool</p>
+                <div class="header-toolbar">
+                    <button id="nav-toggle" class="icon-btn" title="Toggle navigation">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <button id="theme-toggle" class="icon-btn" title="Toggle theme (T)">
+                        <i class="fas fa-sun"></i>
+                    </button>
+                    <button id="help-btn" class="icon-btn" title="Show tips">
+                        <i class="fas fa-question-circle"></i>
+                    </button>
+                </div>
+                <div class="header-decoration">
+                    <div class="floating-element element-1"></div>
+                    <div class="floating-element element-2"></div>
+                    <div class="floating-element element-3"></div>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="dashboard">
+                <i class="fas fa-home"></i>
+                Dashboard
+            </button>
+            <button class="tab-btn" data-tab="cpu-scheduling">
+                <i class="fas fa-microchip"></i>
+                CPU Scheduling
+            </button>
+            <button class="tab-btn" data-tab="bankers">
+                <i class="fas fa-shield-alt"></i>
+                Banker's Algorithm
+            </button>
+            <button class="tab-btn" data-tab="deadlock">
+                <i class="fas fa-exclamation-triangle"></i>
+                Deadlock Detection
+            </button>
+            <button class="tab-btn" data-tab="page-replacement">
+                <i class="fas fa-exchange-alt"></i>
+                Page Replacement
+            </button>
+            <button class="tab-btn" data-tab="memory-allocation">
+                <i class="fas fa-memory"></i>
+                Memory Allocation
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-content active" id="dashboard">
+                <div class="content-header">
+                    <h2>VizOS Dashboard</h2>
+                    <p>Interactive Operating System Simulation Tool</p>
+                </div>
+                
+                <div class="dashboard-grid">
+                    <div class="info-card">
+                        <div class="card-header">
+                            <i class="fas fa-microchip"></i>
+                            <h3>CPU Scheduling</h3>
+                        </div>
+                        <div class="card-content">
+                            <p>Visualize and compare different CPU scheduling algorithms including FCFS, SJF, Priority, and Round Robin.</p>
+                            <ul>
+                                <li>First Come First Serve (FCFS)</li>
+                                <li>Shortest Job First (SJF)</li>
+                                <li>Priority Scheduling</li>
+                                <li>Round Robin</li>
+                            </ul>
+                            <div class="card-metrics">
+                                <div class="metric">
+                                    <span class="metric-value">4</span>
+                                    <span class="metric-label">Algorithms</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-value">Real-time</span>
+                                    <span class="metric-label">Visualization</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn-primary" onclick="switchToTab('cpu-scheduling')">
+                                <i class="fas fa-play"></i>
+                                Start Simulation
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="card-header">
+                            <i class="fas fa-shield-alt"></i>
+                            <h3>Banker's Algorithm</h3>
+                        </div>
+                        <div class="card-content">
+                            <p>Deadlock avoidance using Banker's algorithm with resource allocation graphs and safe sequence detection.</p>
+                            <ul>
+                                <li>Resource Allocation Graph (RAG)</li>
+                                <li>Safe sequence detection</li>
+                                <li>Deadlock avoidance</li>
+                                <li>Resource management</li>
+                            </ul>
+                            <div class="card-metrics">
+                                <div class="metric">
+                                    <span class="metric-value">Safe</span>
+                                    <span class="metric-label">Sequence</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-value">RAG</span>
+                                    <span class="metric-label">Visualization</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn-primary" onclick="switchToTab('bankers')">
+                                <i class="fas fa-play"></i>
+                                Start Simulation
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="card-header">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <h3>Deadlock Detection</h3>
+                        </div>
+                        <div class="card-content">
+                            <p>Detect and visualize deadlocks in resource allocation with wait-for graphs and cycle detection.</p>
+                            <ul>
+                                <li>Wait-for graph construction</li>
+                                <li>Cycle detection algorithm</li>
+                                <li>Deadlock identification</li>
+                                <li>Resource dependency analysis</li>
+                            </ul>
+                            <div class="card-metrics">
+                                <div class="metric">
+                                    <span class="metric-value">Cycle</span>
+                                    <span class="metric-label">Detection</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-value">Graph</span>
+                                    <span class="metric-label">Analysis</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn-primary" onclick="switchToTab('deadlock')">
+                                <i class="fas fa-play"></i>
+                                Start Simulation
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="card-header">
+                            <i class="fas fa-exchange-alt"></i>
+                            <h3>Page Replacement</h3>
+                        </div>
+                        <div class="card-content">
+                            <p>Simulate page replacement algorithms to manage virtual memory and minimize page faults.</p>
+                            <ul>
+                                <li>FIFO (First-In-First-Out)</li>
+                                <li>LRU (Least Recently Used)</li>
+                                <li>Page fault tracking</li>
+                                <li>Memory state visualization</li>
+                            </ul>
+                            <div class="card-metrics">
+                                <div class="metric">
+                                    <span class="metric-value">2</span>
+                                    <span class="metric-label">Algorithms</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-value">Step-by-step</span>
+                                    <span class="metric-label">Visualization</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn-primary" onclick="switchToTab('page-replacement')">
+                                <i class="fas fa-play"></i>
+                                Start Simulation
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="card-header">
+                            <i class="fas fa-memory"></i>
+                            <h3>Memory Allocation</h3>
+                        </div>
+                        <div class="card-content">
+                            <p>Simulate memory allocation strategies to efficiently assign memory blocks to processes.</p>
+                            <ul>
+                                <li>Best Fit - Smallest suitable block</li>
+                                <li>First Fit - First suitable block</li>
+                                <li>Worst Fit - Largest available block</li>
+                                <li>Block status tracking</li>
+                            </ul>
+                            <div class="card-metrics">
+                                <div class="metric">
+                                    <span class="metric-value">3</span>
+                                    <span class="metric-label">Strategies</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-value">Efficient</span>
+                                    <span class="metric-label">Allocation</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn-primary" onclick="switchToTab('memory-allocation')">
+                                <i class="fas fa-play"></i>
+                                Start Simulation
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="info-card theory-card">
+                        <div class="card-header">
+                            <i class="fas fa-graduation-cap"></i>
+                            <h3>Educational Features</h3>
+                        </div>
+                        <div class="card-content">
+                            <p>Comprehensive learning tools for understanding operating system concepts.</p>
+                            <ul>
+                                <li>Algorithm explanations with pseudo code</li>
+                                <li>Interactive parameter tooltips</li>
+                                <li>Step-by-step algorithm visualization</li>
+                                <li>Performance metrics and analysis</li>
+                            </ul>
+                            <div class="theory-snippets">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CPU Scheduling Tab -->
+            <div class="tab-content" id="cpu-scheduling">
+                <div class="content-header">
+                    <h2>CPU Scheduling Algorithms</h2>
+                    <p>Visualize and compare different CPU scheduling algorithms</p>
+                </div>
+                
+                <div class="algorithm-selector">
+                    <label for="algorithm-select">Select Algorithm:</label>
+                    <select id="algorithm-select">
+                        <option value="fcfs">First Come First Serve (FCFS)</option>
+                        <option value="sjf">Shortest Job First (SJF)</option>
+                        <option value="priority">Priority Scheduling</option>
+                        <option value="roundrobin">Round Robin</option>
+                    </select>
+                </div>
+
+                <div class="input-section">
+                    <div class="process-input-container">
+                        <div class="input-header">
+                            <h3>Process Configuration</h3>
+                            <button type="button" class="btn-secondary" id="add-process-btn">
+                                <i class="fas fa-plus"></i>
+                                Add Process
+                            </button>
+                        </div>
+                        <div id="processes-container">
+                            <!-- Process inputs will be dynamically added here -->
+                        </div>
+                    </div>
+                    <div class="input-group" id="quantum-group" style="display: none;">
+                        <label for="quantum-input">Time Quantum:</label>
+                        <input type="number" id="quantum-input" value="2" min="1">
+                    </div>
+                    <button class="btn-primary" id="simulate-btn">
+                        <i class="fas fa-play"></i>
+                        Simulate
+                    </button>
+                </div>
+
+                <div class="results-section">
+                    <div class="gantt-chart-container">
+                        <h3>Gantt Chart</h3>
+                        <canvas id="gantt-chart" width="800" height="200"></canvas>
+                    </div>
+                    
+                    <div class="metrics-container">
+                        <h3>Performance Metrics</h3>
+                        <div class="metrics-grid">
+                            <div class="metric-card">
+                                <div class="metric-value" id="avg-waiting-time">-</div>
+                                <div class="metric-label">Average Waiting Time</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="avg-turnaround-time">-</div>
+                                <div class="metric-label">Average Turnaround Time</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="avg-response-time">-</div>
+                                <div class="metric-label">Average Response Time</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value" id="cpu-utilization">-</div>
+                                <div class="metric-label">CPU Utilization</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Banker's Algorithm Tab -->
+            <div class="tab-content" id="bankers">
+                <div class="content-header">
+                    <h2>Banker's Algorithm</h2>
+                    <p>Deadlock avoidance using Banker's algorithm</p>
+                </div>
+
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="bankers-processes">Number of Processes:</label>
+                        <input type="number" id="bankers-processes" value="3" min="1" max="10">
+                    </div>
+                    <div class="input-group">
+                        <label for="bankers-resources">Number of Resources:</label>
+                        <input type="number" id="bankers-resources" value="3" min="1" max="10">
+                    </div>
+                    <div class="input-header" style="margin-top: 1rem;">
+                        <h3>Advanced Input</h3>
+                        <button class="btn-secondary" id="bankers-toggle-advanced">
+                            <i class="fas fa-sliders-h"></i>
+                            Edit Matrices
+                        </button>
+                    </div>
+                    <div id="bankers-advanced" class="matrix-editor" style="display:none;">
+                        <div class="matrix-grid">
+                            <div class="matrix-card">
+                                <h4>Allocation</h4>
+                                <div id="bankers-allocation"></div>
+                            </div>
+                            <div class="matrix-card">
+                                <h4>Max</h4>
+                                <div id="bankers-max"></div>
+                            </div>
+                            <div class="matrix-card">
+                                <h4>Available</h4>
+                                <div id="bankers-available"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="bankers-simulate-btn">
+                        <i class="fas fa-play"></i>
+                        Simulate Banker's Algorithm
+                    </button>
+                </div>
+
+                <div class="results-section">
+                    <div class="rag-visualization">
+                        <h3>Resource Allocation Graph (RAG)</h3>
+                        <svg id="rag-chart" width="600" height="400"></svg>
+                    </div>
+                    
+                    <div class="safe-sequence">
+                        <h3>Safe Sequence</h3>
+                        <div id="safe-sequence-result">Click simulate to find safe sequence</div>
+                    </div>
+                    <div class="results-section" id="bankers-details" style="margin-top:1rem; display:none;">
+                        <h3>Details</h3>
+                        <div id="bankers-matrices"></div>
+                        <div id="bankers-steps" class="steps-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deadlock Detection Tab -->
+            <div class="tab-content" id="deadlock">
+                <div class="content-header">
+                    <h2>Deadlock Detection</h2>
+                    <p>Detect and visualize deadlocks in resource allocation</p>
+                </div>
+
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="deadlock-processes">Number of Processes:</label>
+                        <input type="number" id="deadlock-processes" value="4" min="1" max="10">
+                    </div>
+                    <div class="input-group">
+                        <label for="deadlock-resources">Number of Resources:</label>
+                        <input type="number" id="deadlock-resources" value="3" min="1" max="10">
+                    </div>
+                    <div class="input-header" style="margin-top: 1rem;">
+                        <h3>Advanced Input</h3>
+                        <button class="btn-secondary" id="deadlock-toggle-advanced">
+                            <i class="fas fa-sliders-h"></i>
+                            Edit Matrices
+                        </button>
+                    </div>
+                    <div id="deadlock-advanced" class="matrix-editor" style="display:none;">
+                        <div class="matrix-grid">
+                            <div class="matrix-card">
+                                <h4>Allocation</h4>
+                                <div id="deadlock-allocation"></div>
+                            </div>
+                            <div class="matrix-card">
+                                <h4>Request</h4>
+                                <div id="deadlock-request"></div>
+                            </div>
+                            <div class="matrix-card">
+                                <h4>Available</h4>
+                                <div id="deadlock-available"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="deadlock-simulate-btn">
+                        <i class="fas fa-search"></i>
+                        Detect Deadlock
+                    </button>
+                </div>
+
+                <div class="results-section">
+                    <div class="deadlock-visualization">
+                        <h3>Deadlock Detection Result</h3>
+                        <div id="deadlock-result">Click detect to analyze for deadlocks</div>
+                    </div>
+                    
+                    <div class="wait-for-graph">
+                        <h3>Wait-for Graph</h3>
+                        <svg id="wait-for-chart" width="600" height="400"></svg>
+                    </div>
+                    <div class="results-section" id="deadlock-details" style="margin-top:1rem; display:none;">
+                        <h3>Details</h3>
+                        <div id="deadlock-matrices"></div>
+                        <div id="deadlock-steps" class="steps-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page Replacement Tab -->
+            <div class="tab-content" id="page-replacement">
+                <div class="content-header">
+                    <h2>Page Replacement Algorithms</h2>
+                    <p>Simulate FIFO and LRU page replacement algorithms</p>
+                </div>
+
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="page-replacement-algorithm">Algorithm:</label>
+                        <select id="page-replacement-algorithm">
+                            <option value="fifo">FIFO (First-In-First-Out)</option>
+                            <option value="lru">LRU (Least Recently Used)</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="page-replacement-frames">Number of Frames:</label>
+                        <input type="number" id="page-replacement-frames" value="3" min="1" max="10">
+                    </div>
+                    <div class="input-group">
+                        <label for="page-requests-input">Page Requests (space-separated):</label>
+                        <input type="text" id="page-requests-input" placeholder="2 3 2 1 5 2 4 5 3 2 5 2" value="2 3 2 1 5 2 4 5 3 2 5 2">
+                        <small style="display: block; margin-top: 0.5rem; color: #666;">Enter space-separated page numbers</small>
+                    </div>
+                    <button class="btn-primary" id="page-replacement-simulate-btn">
+                        <i class="fas fa-play"></i>
+                        Simulate Page Replacement
+                    </button>
+                </div>
+
+                <div class="results-section">
+                    <div class="page-faults-summary">
+                        <h3>Page Faults Summary</h3>
+                        <div class="metric-card" style="margin: 1rem 0;">
+                            <div class="metric-value" id="total-page-faults">-</div>
+                            <div class="metric-label">Total Page Faults</div>
+                        </div>
+                    </div>
+
+                    <div class="page-replacement-visualization-wrapper" style="position: relative; margin-top: 20px;">
+                        <div id="page-replacement-visualization-container" style="background-color: #1a1d24; padding: 15px; border-radius: 8px; display: flex; gap: 0;">
+                            <!-- Content will be generated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Memory Allocation Tab -->
+            <div class="tab-content" id="memory-allocation">
+                <div class="content-header">
+                    <h2>Memory Allocation Algorithms</h2>
+                    <p>Simulate Best Fit, First Fit, and Worst Fit memory allocation strategies</p>
+                </div>
+
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="memory-allocation-algorithm">Algorithm:</label>
+                        <select id="memory-allocation-algorithm">
+                            <option value="best">Best Fit</option>
+                            <option value="first">First Fit</option>
+                            <option value="worst">Worst Fit</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="memory-blocks-input">Memory Blocks (space-separated):</label>
+                        <input type="text" id="memory-blocks-input" placeholder="100 500 200 300 600" value="100 500 200 300 600">
+                        <small style="display: block; margin-top: 0.5rem; color: #666;">Enter space-separated block sizes</small>
+                    </div>
+                    <div class="input-group">
+                        <label for="process-memory-input">Process Memory Requirements (space-separated):</label>
+                        <input type="text" id="process-memory-input" placeholder="212 417 112 426" value="212 417 112 426">
+                        <small style="display: block; margin-top: 0.5rem; color: #666;">Enter space-separated memory requirements</small>
+                    </div>
+                    <button class="btn-primary" id="memory-allocation-simulate-btn">
+                        <i class="fas fa-play"></i>
+                        Simulate Memory Allocation
+                    </button>
+                </div>
+
+                <div class="results-section">
+                    <div class="allocation-results">
+                        <h3>Allocation Results</h3>
+                        <div id="allocation-results-container"></div>
+                    </div>
+
+                    <div class="allocation-steps">
+                        <h3>Step-by-Step Allocation</h3>
+                        <div id="allocation-steps-container"></div>
+                    </div>
+
+                    <div class="block-status">
+                        <h3>Final Block Status</h3>
+                        <div id="block-status-container"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loading-overlay">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Processing...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/fcfs.js"></script>
+    <script src="js/sjf.js"></script>
+    <script src="js/priority.js"></script>
+    <script src="js/roundrobin.js"></script>
+    <script src="js/bankers.js"></script>
+    <script src="js/deadlock.js"></script>
+    <script src="js/page_replacement.js"></script>
+    <script src="js/memory_allocation.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
