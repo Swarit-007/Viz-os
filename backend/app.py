@@ -32,10 +32,13 @@ from backend.modules.deadlock_module import DeadlockModule
 from backend.modules.page_replacement_module import PageReplacementModule
 from backend.modules.memory_allocation_module import MemoryAllocationModule
 
+# Determine frontend path for static files (works in both local and Vercel)
+frontend_path = os.path.join(proj_root, 'frontend')
+
 app = Flask(__name__, 
-            static_folder='../frontend',
+            static_folder=frontend_path,
             static_url_path='',
-            template_folder='../frontend')
+            template_folder=frontend_path)
 CORS(app)  # Enable CORS for frontend communication
 
 # Initialize algorithm modules
@@ -51,7 +54,7 @@ memory_allocation = MemoryAllocationModule()
 @app.route('/')
 def home():
     """Serve the main VizOS application"""
-    return send_from_directory('../frontend', 'index.html')
+    return send_from_directory(frontend_path, 'index.html')
 
 @app.route('/api')
 def api_home():
@@ -225,11 +228,14 @@ def health_check():
         'message': 'VizOS API is running'
     })
 
-# Serve static files
+# Serve static files (exclude API routes)
 @app.route('/<path:filename>')
 def serve_static(filename):
     """Serve static files from frontend directory"""
-    return send_from_directory('../frontend', filename)
+    # Don't serve API routes as static files
+    if filename.startswith('api/'):
+        return jsonify({'error': 'Not found'}), 404
+    return send_from_directory(frontend_path, filename)
 
 if __name__ == '__main__':
     print("Starting VizOS - Interactive OS Simulation Tool")
