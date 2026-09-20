@@ -89,7 +89,7 @@ def test_compare_scheduling_ranks_by_waiting_time():
              {'id': 'P3', 'arrival': 2, 'burst': 9, 'priority': 4},
              {'id': 'P4', 'arrival': 3, 'burst': 5, 'priority': 2}]
     result = CompareModule().scheduling(procs, 2)
-    assert len(result['results']) == 6
+    assert len(result['results']) == 7
     assert 'SRTF' in result['best']  # SRTF minimises average waiting time
     assert result['results'][0]['ganttChart']['totalTime'] == 26
 

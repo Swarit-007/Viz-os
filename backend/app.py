@@ -16,20 +16,25 @@ from flask_cors import CORS  # noqa: E402
 from werkzeug.exceptions import HTTPException  # noqa: E402
 
 from backend.modules.bankers_module import BankersModule  # noqa: E402
+from backend.modules.buddy_module import BuddyModule  # noqa: E402
 from backend.modules.common import ValidationError  # noqa: E402
 from backend.modules.compare_module import CompareModule  # noqa: E402
 from backend.modules.deadlock_module import DeadlockModule  # noqa: E402
 from backend.modules.disk_scheduling_module import DiskSchedulingModule  # noqa: E402
 from backend.modules.fcfs_module import FCFSModule  # noqa: E402
+from backend.modules.file_allocation_module import FileAllocationModule  # noqa: E402
 from backend.modules.memory_allocation_module import MemoryAllocationModule  # noqa: E402
+from backend.modules.mlfq_module import MLFQModule  # noqa: E402
+from backend.modules.multicore_module import MultiCoreModule  # noqa: E402
 from backend.modules.page_replacement_module import PageReplacementModule  # noqa: E402
 from backend.modules.priority_module import PriorityModule  # noqa: E402
 from backend.modules.priority_preemptive_module import PreemptivePriorityModule  # noqa: E402
 from backend.modules.roundrobin_module import RoundRobinModule  # noqa: E402
 from backend.modules.sjf_module import SJFModule  # noqa: E402
 from backend.modules.srtf_module import SRTFModule  # noqa: E402
+from backend.modules.sync_module import SyncModule  # noqa: E402
 
-__version__ = '2.1.0'
+__version__ = '2.2.0'
 
 FRONTEND_PATH = os.path.join(PROJECT_ROOT, 'frontend')
 
@@ -64,6 +69,11 @@ def create_app():
     memory_allocation = MemoryAllocationModule()
     disk = DiskSchedulingModule()
     compare = CompareModule()
+    mlfq = MLFQModule()
+    multicore = MultiCoreModule()
+    sync = SyncModule()
+    buddy = BuddyModule()
+    files = FileAllocationModule()
 
     def json_body():
         data = request.get_json(silent=True)
@@ -109,6 +119,8 @@ def create_app():
                     'priority': '/api/scheduling/priority',
                     'priority-preemptive': '/api/scheduling/priority-preemptive',
                     'roundrobin': '/api/scheduling/roundrobin',
+                    'mlfq': '/api/scheduling/mlfq',
+                    'multicore': '/api/scheduling/multicore',
                 },
                 'bankers': '/api/bankers',
                 'bankers_request': '/api/bankers/request',
@@ -116,6 +128,10 @@ def create_app():
                 'page_replacement': '/api/page-replacement',
                 'memory_allocation': '/api/memory-allocation',
                 'disk_scheduling': '/api/disk-scheduling',
+                'file_allocation': '/api/file-allocation',
+                'synchronization': '/api/sync/{philosophers,producer-consumer,race}',
+                'buddy': '/api/memory/buddy',
+                'segmentation': '/api/memory/segmentation',
                 'compare': '/api/compare/{scheduling,page-replacement,disk}',
                 'health': '/api/health',
             },
@@ -124,6 +140,11 @@ def create_app():
     @app.route('/api/scheduling/<algorithm>', methods=['POST'])
     def api_scheduling(algorithm):
         data = json_body()
+        if algorithm == 'mlfq':
+            return jsonify(mlfq.simulate(data.get('processes'), data.get('quanta'), data.get('aging', 0)))
+        if algorithm == 'multicore':
+            return jsonify(multicore.simulate(data.get('processes'), data.get('cores', 2),
+                                              data.get('policy', 'fcfs'), data.get('time_quantum', 2)))
         if algorithm == 'roundrobin':
             return jsonify(roundrobin.simulate(data.get('processes'), data.get('time_quantum', 2)))
         if algorithm not in schedulers:
@@ -169,6 +190,40 @@ def create_app():
         return jsonify(disk.simulate(
             data.get('algorithm', 'fcfs'), data.get('requests'), data.get('head'),
             data.get('disk_size', 200), data.get('direction', 'up')))
+
+    @app.route('/api/file-allocation', methods=['POST'])
+    def api_file_allocation():
+        data = json_body()
+        return jsonify(files.simulate(data.get('total_blocks', 32), data.get('files'), data.get('used_blocks')))
+
+    @app.route('/api/memory/buddy', methods=['POST'])
+    def api_buddy():
+        data = json_body()
+        return jsonify(buddy.simulate(data.get('memory_size', 1024), data.get('min_block', 32),
+                                      data.get('operations')))
+
+    @app.route('/api/memory/segmentation', methods=['POST'])
+    def api_segmentation():
+        data = json_body()
+        return jsonify(buddy.segmentation(data.get('memory_size', 1000), data.get('segments'),
+                                          data.get('accesses')))
+
+    @app.route('/api/sync/<kind>', methods=['POST'])
+    def api_sync(kind):
+        data = json_body()
+        if kind == 'philosophers':
+            return jsonify(sync.philosophers(data.get('n', 5), data.get('strategy', 'naive'),
+                                             data.get('ticks', 60), data.get('seed', 1),
+                                             data.get('synchronized_start', False)))
+        if kind == 'producer-consumer':
+            return jsonify(sync.producer_consumer(
+                data.get('buffer_size', 3), data.get('producers', 1), data.get('consumers', 1),
+                data.get('ticks', 40), data.get('seed', 1), data.get('synchronized', True),
+                data.get('producer_period', 1), data.get('consumer_period', 2)))
+        if kind == 'race':
+            return jsonify(sync.race(data.get('threads', 2), data.get('increments', 5),
+                                     data.get('use_lock', False), data.get('seed', 1)))
+        raise ValidationError(f'Unknown simulation: {kind}')
 
     @app.route('/api/compare/<kind>', methods=['POST'])
     def api_compare(kind):

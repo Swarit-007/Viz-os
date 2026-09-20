@@ -7,6 +7,7 @@ MAX_PROCESSES = 100
 MAX_RESOURCES = 20
 MAX_PAGE_REQUESTS = 500
 MAX_FRAMES = 100
+MAX_TIME = 1000  # cap on arrival/burst so tick-based simulators stay bounded
 
 
 class ValidationError(ValueError):
@@ -77,8 +78,8 @@ def validate_processes(processes: Any) -> List[Dict[str, Any]]:
         seen.add(pid)
         normalised.append({
             'id': pid,
-            'arrival': require_int(proc.get('arrival'), f'{pid} arrival', 0),
-            'burst': require_int(proc.get('burst'), f'{pid} burst', 1),
+            'arrival': require_int(proc.get('arrival'), f'{pid} arrival', 0, MAX_TIME),
+            'burst': require_int(proc.get('burst'), f'{pid} burst', 1, MAX_TIME),
             'priority': require_int(proc.get('priority', 0), f'{pid} priority'),
         })
     return normalised

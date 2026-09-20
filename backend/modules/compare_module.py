@@ -6,6 +6,7 @@ from .common import ValidationError
 from .disk_scheduling_module import ALGORITHMS as DISK_ALGORITHMS
 from .disk_scheduling_module import DiskSchedulingModule
 from .fcfs_module import FCFSModule
+from .mlfq_module import MLFQModule
 from .page_replacement_module import ALGORITHMS as PAGE_ALGORITHMS
 from .page_replacement_module import PageReplacementModule
 from .priority_module import PriorityModule
@@ -25,6 +26,7 @@ class CompareModule:
             PriorityModule().simulate(processes),
             PreemptivePriorityModule().simulate(processes),
             RoundRobinModule().simulate(processes, time_quantum),
+            MLFQModule().simulate(processes, [2, 4, 8], 0),
         ]
         results = [{
             'algorithm': run['algorithm'],

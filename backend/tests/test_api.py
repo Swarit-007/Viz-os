@@ -115,7 +115,7 @@ def test_new_endpoints(client):
     assert pp.get_json()['algorithm'] == 'Priority (Preemptive)'
 
     cmp_ = client.post('/api/compare/scheduling', json={'processes': PROCS})
-    assert len(cmp_.get_json()['results']) == 6
+    assert len(cmp_.get_json()['results']) == 7
     assert client.post('/api/compare/page-replacement',
                        json={'frames': 2, 'page_requests': [1, 2, 3]}).get_json()['success']
     assert client.post('/api/compare/disk', json={'requests': [5, 9], 'head': 1}).get_json()['best']

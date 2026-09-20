@@ -11,7 +11,7 @@ dev = ["pytest>=8", "ruff>=0.6"]
 prod = ["gunicorn>=22"]
 
 [tool.ruff]
-line-length = 110
+line-length = 135
 extend-exclude = [".venv"]
 
 [tool.ruff.lint]
