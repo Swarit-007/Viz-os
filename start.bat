@@ -19,4 +19,4 @@ pip install --quiet -r requirements.txt
 
 if "%PORT%"=="" set PORT=5000
 echo VizOS: http://localhost:%PORT%   API: http://localhost:%PORT%/api
-python backend\app.py
+python -m vizos.app

@@ -1,89 +1,92 @@
 # VizOS
 
-Interactive visualizer for core Operating Systems algorithms. A Flask API runs the simulations
-and a dependency-free HTML/CSS/JS frontend draws Gantt charts, resource graphs and step-by-step traces.
+A laboratory notebook of operating-system algorithms. Pick an experiment, change the numbers, press play,
+and watch it work, one step at a time, with the pseudocode line lighting up beside it.
 
-## Algorithms
+**56 algorithms** across nine chapters, each with a simulator, pseudocode, complexity notes, a random-input generator
+and a textbook example. Light theme = drafting paper, dark theme = blueprint.
 
-| Area | Algorithms |
+| Chapter | Experiments |
 | --- | --- |
-| CPU scheduling | FCFS, SJF, SRTF (preemptive SJF), Priority (non-preemptive and preemptive), Round Robin, Multilevel Feedback Queue with aging, multi-core scheduling |
-| Synchronization | Dining philosophers (naive, ordered, asymmetric, waiter), bounded-buffer producer-consumer with semaphores, race condition with and without a lock |
-| Disk scheduling | FCFS, SSTF, SCAN, C-SCAN, LOOK, C-LOOK |
-| File allocation | Contiguous, linked and indexed, side by side on a fragmented disk |
-| Deadlocks | Banker's algorithm (safe sequence, resource-request check, RAG), deadlock detection (wait-for graph) |
-| Analysis | Side-by-side comparison of every algorithm on the same input |
-| Page replacement | FIFO, LRU, Optimal, Clock (second chance) |
-| Memory allocation | First Fit, Best Fit, Worst Fit, Next Fit, buddy system, segmentation |
+| CPU Scheduling | FCFS, SJF, SRTF, Priority (non-preemptive and preemptive), HRRN, Round Robin, Lottery, CFS, Multilevel Feedback Queue with aging, Multi-core |
+| Real-time | Earliest Deadline First, Rate Monotonic |
+| Synchronization | Dining philosophers (naive, resource ordering, asymmetric, waiter), producer-consumer (with and without semaphores), race condition (with and without a lock), readers-writers, Peterson's algorithm |
+| Deadlocks | Banker's algorithm, Banker's resource request, deadlock detection, resource-allocation-graph cycles |
+| Virtual Memory | FIFO, LRU, MRU, LFU, Optimal, Clock; Belady's anomaly; working set; TLB translation with effective access time; two-level page tables |
+| Memory Allocation | First, Best, Worst and Next Fit; buddy system; segmentation |
+| Disk and Storage | FCFS, SSTF, SCAN, C-SCAN, LOOK, C-LOOK; RAID 0, 1, 5 and 10 with disk failure |
+| File Systems | Contiguous, linked and indexed allocation; Unix inode |
+| Processes and Caches | fork() process trees; set-associative CPU cache |
 
-## Quick start
+## Run it
 
 ```bash
-./start.sh            # macOS / Linux   (Windows: start.bat)
+./start.sh                    # macOS / Linux   (Windows: start.bat)
 ```
 
-Then open <http://localhost:5000>. Every screen recomputes as you edit, has a textbook example, and can be played back step by step. Light and dark themes follow your system. Manual setup:
+Open <http://localhost:5000>. Manually:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python backend/app.py
+python -m vizos.app
 ```
 
-### Configuration (environment variables)
+Keyboard: `/` or `Ctrl/Cmd+K` search, `R` random input, `E` textbook example, `Space` play or pause, `[` and `]` step.
+Every page has a shareable link (your inputs are encoded in the URL), JSON export, and, for most families,
+a button that races every algorithm of the family on your input.
+
+## How it is built
+
+```
+vizos/            Python package
+  core.py         registry, parameter schemas + validation, result helpers
+  algos/          one module per chapter; each algorithm registers metadata + a run() function
+  compare.py      run a whole family on one input
+  app.py          Flask app: JSON API + static site
+web/              front end, plain ES modules, no build step
+  js/viz/         one renderer per figure kind (timeline, frames, disk, grid, ...)
+tests/            pytest: contract tests for every algorithm, textbook values, invariants, API
+api/index.py      Vercel entry point
+```
+
+An algorithm is declared once. Its metadata (summary, complexity, pseudocode, and a typed parameter schema)
+is served at `/api/catalog`, and the front end builds the page and the input form from it, so adding an
+algorithm never needs any form code:
+
+```python
+@algorithm(id='fcfs', name='First Come First Served', category='cpu', viz='timeline', pseudocode=[...],
+           params=[procs_param()], example={...}, random=lambda rng: {...}, ...)
+def fcfs(params): ...
+```
+
+Each result carries `summary` tiles, a list of `steps` (each with a note, the pseudocode lines to highlight and a
+cursor for the figure), and figure `data`.
+
+### API
+
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/catalog` | every algorithm with its metadata and parameter schema |
+| `POST /api/run/<id>` | `{"params": {...}}` returns the result; invalid input is HTTP 400 with `{"success": false, "error": "..."}` |
+| `POST /api/random/<id>` | `{"seed": 3}` (optional) returns a valid random input; the same seed gives the same input |
+| `POST /api/compare/<family>` | rank every algorithm of a family (`cpu`, `page`, `disk`, `fit`, `files`, `realtime`) on one input |
+| `GET /api/health` | health check |
+
+### Configuration
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PORT` / `VIZOS_PORT` | `5000` | Listen port |
-| `VIZOS_HOST` | `127.0.0.1` | Bind address (use `0.0.0.0` to expose on the network) |
-| `VIZOS_DEBUG` | off | Set to `1` for Flask debug mode. Never enable on a reachable host |
-| `VIZOS_CORS_ORIGINS` | none | Comma-separated origins allowed to call `/api/*` cross-origin |
+| `PORT` / `VIZOS_PORT` | `5000` | listen port |
+| `VIZOS_HOST` | `127.0.0.1` | bind address |
+| `VIZOS_DEBUG` | off | Flask debug mode. Never enable on a reachable host |
 
-### Docker
-
-```bash
-docker build -t vizos . && docker run -p 8000:8000 vizos
-```
-
-## API
-
-All endpoints take and return JSON. Invalid input returns HTTP 400 with `{"success": false, "error": "..."}`.
-
-| Method & path | Body |
-| --- | --- |
-| `POST /api/scheduling/{fcfs,sjf,srtf,priority,priority-preemptive}` | `{"processes": [{"id": "P1", "arrival": 0, "burst": 5, "priority": 1}]}` |
-| `POST /api/scheduling/roundrobin` | as above plus `"time_quantum": 2` |
-| `POST /api/scheduling/mlfq` | `processes`, `quanta` (per queue, e.g. `[2, 4, 8]`), `aging` (0 = off) |
-| `POST /api/scheduling/multicore` | `processes`, `cores` (1 to 8), `policy` (`fcfs`, `sjf`, `srtf`, `rr`), `time_quantum` |
-| `POST /api/sync/{philosophers,producer-consumer,race}` | seeded, deterministic simulations; see `backend/modules/sync_module.py` |
-| `POST /api/memory/buddy` | `memory_size`, `min_block`, `operations` (`{"op": "alloc", "name": "A", "size": 100}` or `free`) |
-| `POST /api/memory/segmentation` | `memory_size`, `segments` (`name`, `base`, `limit`), `accesses` (`segment`, `offset`) |
-| `POST /api/file-allocation` | `total_blocks`, `files` (`name`, `size`), `used_blocks` |
-| `POST /api/bankers` | `num_processes`, `num_resources`, optional `allocation`, `max`, `available` (random if omitted) |
-| `POST /api/bankers/request` | `allocation`, `max`, `available`, `process` (1-based), `request` |
-| `POST /api/deadlock` | `num_processes`, `num_resources`, optional `allocation`, `request`, `available` |
-| `POST /api/page-replacement` | `{"algorithm": "fifo\|lru\|optimal\|clock", "frames": 3, "page_requests": [1, 2, 3]}` |
-| `POST /api/memory-allocation` | `{"strategy": "first\|best\|worst\|next", "blocks": [100, 500], "processes": [212]}` |
-| `POST /api/disk-scheduling` | `{"algorithm": "fcfs\|sstf\|scan\|cscan\|look\|clook", "requests": [98, 183], "head": 53, "disk_size": 200, "direction": "up"}` |
-| `POST /api/compare/{scheduling,page-replacement,disk}` | same body as the matching simulation; returns every algorithm ranked |
-| `GET /api/health` | health check |
-
-Limits: 100 processes, arrival and burst up to 1000, 20 resource types, 500 page references, 100 frames, 256 disk blocks, 1 MiB request body.
-
-## Development
+## Develop
 
 ```bash
-pip install -r backend/requirements.txt
-pytest          # unit + API tests
-ruff check .    # lint
+pip install -e ".[dev]"
+pytest          # 330+ tests
+ruff check .
 ```
 
-Layout: `backend/app.py` (routes, error handling), `backend/modules/` (one module per algorithm
-plus `common.py` for validation and result building), `backend/tests/`, `frontend/` (static ES-module
-site, no build step: `js/views/` has one file per screen, `js/charts.js` the SVG charts),
-`api/index.py` (Vercel entry point).
-
-## Deployment
-
-Vercel: `vercel.json` routes everything to `api/index.py`. Elsewhere: use the Dockerfile
-(gunicorn) or run `gunicorn backend.app:app`.
+Deploy: Vercel (`vercel.json` routes everything to `api/index.py`), or the Dockerfile (gunicorn).

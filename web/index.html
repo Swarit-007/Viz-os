@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VizOS: how machines decide</title>
+    <meta name="description" content="A laboratory notebook of operating-system algorithms: CPU scheduling, synchronization, deadlocks, virtual memory, disks and file systems, each one runnable and steppable.">
+    <meta name="color-scheme" content="light dark">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23d1382b'/%3E%3Cpath d='M8 9l8 15 8-15' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+        <defs>
+            <!-- a slight wobble so lines look drawn by hand; only used on shapes, never on text -->
+            <filter id="wobble" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.4"/></filter>
+        </defs>
+    </svg>
+    <a class="skip" href="#view">Skip to content</a>
+    <header class="masthead">
+        <a class="brand" href="#/" aria-label="VizOS, contents"><span class="brand-mark" aria-hidden="true">V</span><span class="brand-name">VizOS</span><span class="brand-sub">a laboratory notebook of operating-system algorithms</span></a>
+        <div class="mast-actions">
+            <button id="search-btn" class="btn" type="button">Search<kbd>/</kbd></button>
+            <button id="surprise-btn" class="btn" type="button">Surprise me</button>
+            <button id="theme-btn" class="btn btn-quiet" type="button"></button>
+        </div>
+    </header>
+    <main id="view" tabindex="-1"></main>
+    <footer class="colophon"><span>VizOS</span><span>Every figure is computed by the server from your inputs.</span><span><kbd>R</kbd> random <kbd>E</kbd> example <kbd>Space</kbd> play <kbd>[</kbd><kbd>]</kbd> step</span></footer>
+    <noscript><p style="padding:2rem">VizOS needs JavaScript to run.</p></noscript>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

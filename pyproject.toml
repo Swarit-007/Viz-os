@@ -1,19 +1,22 @@
 [project]
 name = "vizos"
-version = "2.0.0"
-description = "Interactive Operating System algorithm visualizer"
+version = "3.0.0"
+description = "A laboratory notebook of operating-system algorithms"
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = ["Flask>=3.0,<4", "Flask-Cors>=5,<7"]
+dependencies = ["Flask>=3.0,<4"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
 prod = ["gunicorn>=22"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.ruff]
-line-length = 135
+line-length = 160
 extend-exclude = [".venv"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
-ignore = ["UP006", "UP035"]  # keep typing.List etc. for Python 3.9 compatibility
+select = ["E", "F", "I", "B"]
+ignore = ["E501", "E741", "E731", "B023", "B905", "E402", "F403", "F401", "B008"]

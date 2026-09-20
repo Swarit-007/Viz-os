@@ -28,4 +28,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: for f in frontend/js/*.js; do node --check "$f"; done
+      - run: for f in $(find web/js -name "*.js"); do node --check "$f"; done

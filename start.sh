@@ -19,4 +19,4 @@ pip install --quiet -r requirements.txt
 
 export PORT="${PORT:-5000}"
 echo "VizOS: http://localhost:${PORT}   API: http://localhost:${PORT}/api"
-exec python backend/app.py
+exec python -m vizos.app

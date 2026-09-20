@@ -6,12 +6,12 @@ WORKDIR /app
 COPY requirements.txt requirements-prod.txt ./
 RUN pip install --no-cache-dir -r requirements.txt -r requirements-prod.txt
 
-COPY backend ./backend
-COPY frontend ./frontend
+COPY vizos ./vizos
+COPY web ./web
 
 RUN useradd --create-home appuser
 USER appuser
 
 ENV PORT=8000
 EXPOSE 8000
-CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT} backend.app:app"]
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT} vizos.app:app"]
