@@ -23,6 +23,7 @@ function append(el, children) {
     }
 }
 
+// h('div', {class: 'x'}, child, child) builds an element. Strings become text nodes, so data can never inject HTML.
 export function h(tag, attrs, ...children) {
     const el = document.createElement(tag);
     apply(el, attrs);
@@ -30,6 +31,7 @@ export function h(tag, attrs, ...children) {
     return el;
 }
 
+// Same as h() but creates SVG elements (they need the SVG namespace to render).
 export function svg(tag, attrs, ...children) {
     const el = document.createElementNS(SVG_NS, tag);
     apply(el, attrs);
@@ -37,12 +39,14 @@ export function svg(tag, attrs, ...children) {
     return el;
 }
 
+// Empty an element and fill it with new children.
 export function replace(el, ...children) {
     el.replaceChildren();
     append(el, children);
     return el;
 }
 
+// Delay fn until `ms` after the last call; wrapped.cancel() drops a pending call.
 export function debounce(fn, ms) {
     let timer;
     const wrapped = (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };

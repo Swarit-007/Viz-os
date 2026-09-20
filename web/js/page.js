@@ -1,3 +1,11 @@
+// page.js: builds one algorithm's page (the 'experiment').
+//
+// Data flow:  form change -> read params -> POST /api/run -> result { summary, steps, data, table, verdict }
+//   * the figure is drawn by renderFigure(result, frame) from viz/index.js
+//   * the caption and highlighted pseudocode line come from result.steps[frame - 1]
+//   * the player moves `frame`; nothing is recomputed while you scrub, it only redraws.
+// The current inputs are also written into the URL hash, which is what makes every page shareable.
+
 import { compareFamily, getCatalog, randomParams, runAlgorithm } from './api.js';
 import { debounce, h, replace } from './dom.js';
 import { buildForm } from './form.js';
@@ -6,24 +14,32 @@ import { player } from './player.js';
 import { chip, decodeState, download, encodeState, fmt } from './util.js';
 import { renderFigure } from './viz/index.js';
 
+// Remembers the last inputs for each algorithm so leaving a page and coming back keeps your work.
 const session = new Map();   // last inputs per algorithm, so switching pages keeps your work
+// Respect the operating-system setting: no automatic playback for people who asked for less motion.
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// The Procedure card. mark([...]) highlights the given zero-based line numbers.
 function pseudocode(lines) {
     const list = h('ol', { class: 'procedure', 'aria-label': 'Procedure' }, lines.map((t, i) => h('li', { 'data-i': i }, h('code', null, t.replace(/^ +/, (m) => ' '.repeat(m.length))))));
     list.mark = (active = []) => { const on = new Set(active); [...list.children].forEach((li, i) => { li.classList.toggle('on', on.has(i)); if (on.has(i)) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current'); }); };
     return list;
 }
 
+// The 'Measurements' ledger: one label/value row per summary tile.
 function measurements(res) {
     return h('dl', { class: 'measure' }, res.summary.flatMap((t) => [h('dt', null, t.label, t.hint ? h('small', null, ` ${t.hint}`) : null), h('dd', { class: t.tone ? `tone-${t.tone}` : '' }, fmt(t.value))]));
 }
 
+// Results table. A cell shaped {proc: 'P1'} is drawn as a coloured process chip, anything else as text.
 function dataTable(t) {
     return h('div', { class: 'table-wrap' }, h('table', { class: 'data' }, h('thead', null, h('tr', null, t.headers.map((c) => h('th', null, c)))),
         h('tbody', null, t.rows.map((row) => h('tr', null, row.map((cell) => h('td', null, cell && typeof cell === 'object' ? chip(cell.proc) : fmt(cell))))))));
 }
 
+// Assemble the whole page for algorithm `id` inside `root`.
+// `hashParams` is the encoded ?p=... from the URL (or undefined); `controller` is filled with random/example/toggle/step
+// so the keyboard shortcuts in main.js can act on the page that is currently open.
 export async function mountAlgorithm(root, id, hashParams, controller) {
     const catalog = await getCatalog();
     const alg = catalog.byId.get(id);
@@ -44,11 +60,13 @@ export async function mountAlgorithm(root, id, hashParams, controller) {
     const procedure = pseudocode(alg.pseudocode);
     let res = null;
     let pl = null;
+    // `seq` numbers each run. If the user edits again before a slow response returns, the older response is ignored.
     let seq = 0;
     let animate = true;
 
     const form = buildForm(alg.params, () => schedule());
 
+    // Draw frame f: figure, caption sentence and the highlighted pseudocode lines.
     function showFrame(f) {
         replace(figure, renderFigure(res, f));
         const step = f > 0 ? res.steps[f - 1] : null;
@@ -56,6 +74,8 @@ export async function mountAlgorithm(root, id, hashParams, controller) {
         procedure.mark(step ? step.lines : []);
     }
 
+    // Read the form, call the server, then rebuild the player, measurements, verdict and table.
+    // restart = true (after Randomise/Example/first load) plays the animation from the start.
     async function run(restart) {
         const read = form.read();
         if (read.error) { error.textContent = read.error; error.hidden = false; return; }
@@ -81,6 +101,7 @@ export async function mountAlgorithm(root, id, hashParams, controller) {
             error.hidden = false;
         }
     }
+    // Typing triggers a run 220 ms after the last keystroke, so the server is not called on every character.
     const schedule = debounce(() => run(false), 220);
 
     async function useParams(params, restart = true) { form.set(params); await run(restart); }
@@ -90,6 +111,7 @@ export async function mountAlgorithm(root, id, hashParams, controller) {
 
     // ---- compare ("race the family") ----
     const canCompare = alg.family && catalog.compare.includes(alg.family);
+    // 'Race the whole family': run every algorithm of this family on the current input and show a ranked bar chart.
     async function race() {
         const read = form.read();
         if (read.error) return;
@@ -103,6 +125,7 @@ export async function mountAlgorithm(root, id, hashParams, controller) {
         } catch (e) { replace(compareHost, h('h2', null, 'The family, side by side'), h('div', { class: 'notice' }, e.message)); }
     }
 
+    // ---- page layout: header, then main column (figure, measurements, table) and a sticky margin (setup, procedure, notes) ----
     // ---- layout ----
     replace(root,
         h('article', { class: 'experiment' },
@@ -134,6 +157,7 @@ export async function mountAlgorithm(root, id, hashParams, controller) {
     document.title = `${alg.name} · VizOS`;
 }
 
+// A small message that fades in at the bottom of the screen (used for 'Link copied').
 let toastTimer;
 export function toast(text) {
     let el = document.getElementById('toast');

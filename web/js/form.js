@@ -1,7 +1,15 @@
+// form.js: builds an input form from a parameter schema sent by the server.
+// The server describes each input ({type: 'int' | 'bool' | 'choice' | 'intlist' | 'lines' | 'table' | 'matrix' | 'vector', ...});
+// this file turns that into DOM controls. Every field builder returns { el, get(), set(v), error() }:
+//   el     the DOM node to show          get()    the current value        set(v)  replace the value
+//   error  a message if the current text cannot be parsed, otherwise null
+// buildForm() then combines the fields and exposes read() (all values or the first error) and set().
+
 import { h, replace } from './dom.js';
 import { icon } from './icons.js';
 import { chip } from './util.js';
 
+// Empty text becomes NaN (an error) rather than 0, so a blank cell is never silently treated as zero.
 const toInt = (text) => (text.trim() === '' ? NaN : Number(text));
 
 function numberInput(value, spec, onInput, label) {
@@ -10,6 +18,7 @@ function numberInput(value, spec, onInput, label) {
 }
 
 // ---- individual field builders: each returns { el, get(), set(value), error() } -------------------------
+// ---- individual field builders ----------------------------------------------------------------------------
 function intField(spec, change) {
     const input = numberInput(spec.default, spec, () => change(), spec.label);
     return { el: input, get: () => toInt(input.value), set: (v) => { input.value = v; }, error: () => (Number.isInteger(toInt(input.value)) ? null : `${spec.label} must be a whole number`) };
@@ -20,6 +29,7 @@ function boolField(spec, change) {
     return { el: h('label', { class: 'check' }, input, h('span', null, spec.label)), get: () => input.checked, set: (v) => { input.checked = !!v; }, error: () => null, bare: true };
 }
 
+// Up to four options show as a segmented button row; more become a drop-down.
 function choiceField(spec, change) {
     let value = spec.default;
     let el;
@@ -35,6 +45,7 @@ function choiceField(spec, change) {
     return { el, get: () => value, set, error: () => null };
 }
 
+// A list of whole numbers typed as text, e.g. a page reference string '7 0 1 2 0 3'. Commas or spaces both work.
 function intListField(spec, change) {
     const input = h('input', { type: 'text', spellcheck: 'false', 'aria-label': spec.label, onInput: () => change() });
     const parse = () => {
@@ -46,11 +57,13 @@ function intListField(spec, change) {
         error: () => { const v = parse(); if (!v) return `${spec.label}: whole numbers separated by spaces`; if (v.length < spec.minLen || v.length > spec.maxLen) return `${spec.label}: ${spec.minLen} to ${spec.maxLen} numbers`; return null; } };
 }
 
+// One value per line (for example 'alloc A 100'); blank lines are ignored.
 function linesField(spec, change) {
     const area = h('textarea', { class: 'lines', rows: 5, spellcheck: 'false', placeholder: spec.placeholder || '', 'aria-label': spec.label, onInput: () => change() });
     return { el: area, get: () => area.value.split('\n').map((l) => l.trim()).filter(Boolean), set: (v) => { area.value = v.join('\n'); area.rows = Math.min(10, Math.max(4, v.length + 1)); }, error: () => null };
 }
 
+// An editable table (processes, segments, files). Row ids like P1, P2 are renumbered automatically when rows are removed.
 function tableField(spec, change) {
     let rows = [];
     const body = h('div', { class: 'grid-table', style: { '--cols': spec.columns.length + 2 } });
@@ -73,6 +86,8 @@ function tableField(spec, change) {
         error: () => rows.some((r) => spec.columns.some((c) => c.kind === 'int' && !Number.isInteger(r[c.key]))) ? `${spec.label}: every cell needs a whole number` : null };
 }
 
+// Editable matrix or vector of numbers. Its size follows other integer fields (for example 'processes' and 'resources'),
+// so changing those resizes the grid and keeps the values that still fit.
 function gridField(spec, change, sizes, vector) {
     let values = [];
     let r = 0;
@@ -99,6 +114,8 @@ function gridField(spec, change, sizes, vector) {
 }
 
 // ---- the form ---------------------------------------------------------------------------------------
+// ---- the form ---------------------------------------------------------------------------------------------
+// Create one field per schema entry. Any edit calls onChange (the page debounces it and re-runs the algorithm).
 export function buildForm(schema, onChange) {
     const fields = new Map();
     const el = h('div', { class: 'form' });

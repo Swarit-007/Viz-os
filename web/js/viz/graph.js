@@ -1,3 +1,5 @@
+// viz/graph.js: directed graphs on a circle (resource-allocation graph, wait-for graph). Cycle nodes and edges turn red.
+
 import { svg } from '../dom.js';
 
 const W = 640;

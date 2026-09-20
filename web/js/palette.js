@@ -1,3 +1,5 @@
+// palette.js: the search dialog. Uses the native <dialog> element, so focus trapping and Escape work without extra code.
+
 import { getCatalog } from './api.js';
 import { h, replace } from './dom.js';
 import { icon } from './icons.js';
@@ -12,6 +14,7 @@ export function createPalette(go) {
     let active = 0;
     let all = [];
 
+    // Every search word must appear somewhere in the name, id, tags, chapter or summary. Name matches sort first.
     function score(a, q) {
         const hay = `${a.name} ${a.id} ${a.tags.join(' ')} ${a.category} ${a.summary}`.toLowerCase();
         return q.split(/\s+/).every((t) => hay.includes(t)) ? (a.name.toLowerCase().includes(q) ? 0 : 1) : 9;

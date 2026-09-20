@@ -15,6 +15,7 @@ class ValidationError(ValueError):
     """Raised for malformed client input. Maps to HTTP 400."""
 
 
+# The chapters shown on the home page, in order. Every algorithm names one of these ids as its `category`.
 CATEGORIES = [
     {'id': 'cpu', 'name': 'CPU Scheduling', 'blurb': 'Who gets the processor next, and for how long.'},
     {'id': 'realtime', 'name': 'Real-time', 'blurb': 'Scheduling when missing a deadline is a failure.'},
@@ -27,10 +28,15 @@ CATEGORIES = [
     {'id': 'misc', 'name': 'Processes and Caches', 'blurb': 'Process creation and cache behaviour.'},
 ]
 
+# Safety limits so a request can never make the server do unbounded work.
+# MAX_ROWS caps list and table inputs; MAX_TIME caps arrival/burst-style numbers.
 MAX_ROWS = 60
 MAX_TIME = 1000
 
 
+# One entry in the catalog. Everything the front end needs to build a page comes from here:
+# the text (name, summary, notes), the figure kind (viz), the pseudocode lines that steps refer to by index,
+# the parameter schema (params) that drives the input form, an example input and a random-input generator.
 @dataclass
 class Algorithm:
     id: str
@@ -45,6 +51,7 @@ class Algorithm:
     example: Dict[str, Any]
     random: Callable[[random.Random], Dict[str, Any]]
     notes: List[str] = field(default_factory=list)
+    # Algorithms sharing a `family` can be raced against each other on the same input (see compare.py).
     family: Optional[str] = None       # algorithms in the same family can be compared
     tags: List[str] = field(default_factory=list)
 
@@ -55,12 +62,18 @@ class Algorithm:
                 'family': self.family, 'tags': self.tags}
 
 
+# id -> Algorithm. Filled at import time by the @algorithm decorator in vizos/algos/*.
 REGISTRY: Dict[str, Algorithm] = {}
 
 
+# Registration is a decorator so an algorithm's metadata sits right next to its code:
+#
+#     @algorithm(id='fcfs', name='...', category='cpu', viz='timeline', ...)
+#     def fcfs(params): ...
 def algorithm(**meta):
     """Decorator: register `run(params) -> result` together with its metadata."""
     def wrap(fn):
+        # Fail loudly at import time (not at request time) if the registry is inconsistent.
         alg = Algorithm(run=fn, **meta)
         if alg.id in REGISTRY:
             raise RuntimeError(f'duplicate algorithm id: {alg.id}')
@@ -72,6 +85,9 @@ def algorithm(**meta):
 
 
 # --------------------------------------------------------------------------- parameter schema
+# ---- schema builders -------------------------------------------------------------------------------
+# Each returns a plain dict. The dict is sent to the browser (to draw the form) and used by validate() below
+# (to check the request), so the two can never disagree.
 def Int(name, label, default, lo=0, hi=1000, hint=''):
     return {'name': name, 'type': 'int', 'label': label, 'default': default, 'min': lo, 'max': hi, 'hint': hint}
 
@@ -121,6 +137,7 @@ def Vector(name, label, length, default, lo=0, hi=99, hint=''):
             'min': lo, 'max': hi, 'hint': hint}
 
 
+# Strict integer check. Booleans are rejected because JSON `true` would otherwise pass as the number 1.
 def _int(value, label, lo, hi):
     if isinstance(value, bool) or not isinstance(value, Real):
         raise ValidationError(f'{label} must be a number')
@@ -134,6 +151,8 @@ def _int(value, label, lo, hi):
     return value
 
 
+# Turn untrusted request JSON into clean Python values, or raise ValidationError with a readable message.
+# Fields missing from `raw` take the schema default, so `{}` is always a valid request.
 def validate(schema: List[Dict[str, Any]], raw: Any) -> Dict[str, Any]:
     """Validate and coerce `raw` against `schema`. Missing fields take their defaults."""
     if raw is None:
@@ -165,6 +184,8 @@ def validate(schema: List[Dict[str, Any]], raw: Any) -> Dict[str, Any]:
                 raise ValidationError(f'{label} must not be empty')
         elif kind == 'table':
             out[name] = _table(spec, value)
+        # Matrices and vectors size themselves from other integer parameters (e.g. n processes x m resources),
+        # which is why those integers must appear earlier in the schema.
         elif kind == 'matrix':
             rows, cols = out.get(spec['rows']), out.get(spec['cols'])
             if rows is None or cols is None:
@@ -187,6 +208,7 @@ def validate(schema: List[Dict[str, Any]], raw: Any) -> Dict[str, Any]:
     return out
 
 
+# Validate an editable table. Row ids (P1, P2, ...) are generated here, never trusted from the client.
 def _table(spec, value):
     if not isinstance(value, list) or not spec['minRows'] <= len(value) <= spec['maxRows']:
         raise ValidationError(f'{spec["label"]} needs {spec["minRows"]} to {spec["maxRows"]} rows')
@@ -211,10 +233,16 @@ def _table(spec, value):
 
 
 # --------------------------------------------------------------------------- results
+# ---- results ------------------------------------------------------------------------------------------
+# A `tile` is one labelled number in the Measurements panel. tone is 'good', 'bad' or None (colours the value).
 def tile(label, value, hint=None, tone=None):
     return {'label': label, 'value': value, 'hint': hint, 'tone': tone}
 
 
+# Collects the playback steps of a run. Each step is one frame of the animation:
+#   note  - the sentence shown as the figure caption
+#   lines - indexes into the algorithm's pseudocode to highlight
+#   at    - where the figure should be drawn: a time value for timelines, a snapshot index for everything else
 class Trace:
     """Collects playback steps. `at` is the cursor value the visualisation should render at."""
 
@@ -227,11 +255,15 @@ class Trace:
         self.steps.append(step)
 
 
+# The one response shape every algorithm returns, so the front end has a single contract to code against.
+#   summary - list of tiles, steps - the Trace, data - whatever the figure needs, table - optional results table,
+#   verdict - optional {ok, label, text} shown as a rubber stamp (e.g. 'Deadlock').
 def result(alg_id: str, viz: str, summary, trace: Trace, data: Dict[str, Any], table=None, verdict=None):
     return {'success': True, 'id': alg_id, 'viz': viz, 'summary': summary, 'steps': trace.steps,
             'data': data, 'table': table, 'verdict': verdict}
 
 
+# Look up, validate, run. The only entry point the API uses to execute an algorithm.
 def run_algorithm(alg_id: str, raw: Any) -> Dict[str, Any]:
     alg = REGISTRY.get(alg_id)
     if alg is None:
@@ -239,6 +271,7 @@ def run_algorithm(alg_id: str, raw: Any) -> Dict[str, Any]:
     return alg.run(validate(alg.params, raw))
 
 
+# A random but always valid input. The same seed gives the same input, which makes shared links and tests repeatable.
 def random_params(alg_id: str, seed: Optional[int] = None) -> Dict[str, Any]:
     alg = REGISTRY.get(alg_id)
     if alg is None:

@@ -5,6 +5,8 @@ from typing import Any, Dict, List
 
 from ..core import Int, Lines, Matrix, Trace, ValidationError, Vector, algorithm, result, tile
 
+# The textbook Banker's example (Silberschatz): 5 processes, 3 resource types.
+#   ALLOC = units each process holds now, MAX = the most each may ever need, AVAIL = units free right now.
 ALLOC = [[0, 1, 0], [2, 0, 0], [3, 0, 2], [2, 1, 1], [0, 0, 2]]
 MAX = [[7, 5, 3], [3, 2, 2], [9, 0, 2], [2, 2, 2], [4, 3, 3]]
 AVAIL = [3, 3, 2]
@@ -14,6 +16,10 @@ def _fmt(v):
     return '[' + ', '.join(map(str, v)) + ']'
 
 
+# The safety algorithm, shared by Banker's, the request check and deadlock detection.
+# `work` starts as the free resources. Repeatedly find an unfinished process whose remaining demand (`need`) fits in
+# `work`; assume it runs to completion and returns everything it holds. If all processes can finish this way
+# in some order, the state is safe. One playback step (and one `snaps` snapshot) is recorded per check.
 def _safety(alloc, need, available, trace, lines, snaps, label='need'):
     """Run the safety / detection loop, recording one step per check. Returns the safe sequence."""
     n, m = len(alloc), len(available)
@@ -42,12 +48,14 @@ def _safety(alloc, need, available, trace, lines, snaps, label='need'):
     return order, finish
 
 
+# Data payload for the matrix figure: the three matrices plus one snapshot (work vector, finished flags, focused row) per step.
 def _banker_data(n, m, alloc, mx, need, avail, snaps, extra=None):
     d = {'n': n, 'm': m, 'allocation': alloc, 'max': mx, 'need': need, 'available': avail, 'snapshots': snaps}
     d.update(extra or {})
     return d
 
 
+# Random state that always satisfies allocation <= max, as a real Banker's state must.
 def _random_state(rng, n=None, m=None):
     n, m = n or rng.randint(3, 5), m or rng.randint(2, 4)
     alloc = [[rng.randint(0, 3) for _ in range(m)] for _ in range(n)]
@@ -55,6 +63,7 @@ def _random_state(rng, n=None, m=None):
     return {'n': n, 'm': m, 'allocation': alloc, 'max': mx, 'available': [rng.randint(0, 4) for _ in range(m)]}
 
 
+# The Banker's invariant: no process may hold more than its declared maximum.
 def _check_state(p):
     for i in range(p['n']):
         for j in range(p['m']):
@@ -80,6 +89,7 @@ SAFETY_PSEUDO = ['work = available; finish = all false', 'repeat while progress 
            example={'n': 5, 'm': 3, 'allocation': ALLOC, 'max': MAX, 'available': AVAIL}, random=lambda rng: _random_state(rng),
            notes=['need = max - allocation.', 'A safe state has at least one order in which every process can finish; unsafe does not mean deadlocked, only possible.'],
            tags=['avoidance'])
+# need[i][j] = max[i][j] - allocation[i][j] is what process i may still ask for. Then run the safety algorithm.
 def bankers(p):
     _check_state(p)
     n, m = p['n'], p['m']
@@ -106,6 +116,8 @@ def bankers(p):
            example={'n': 5, 'm': 3, 'allocation': ALLOC, 'max': MAX, 'available': AVAIL, 'process': 2, 'request': [1, 0, 2]},
            random=lambda rng: {**_random_state(rng, 4, 3), 'process': rng.randint(1, 4), 'request': [rng.randint(0, 2) for _ in range(3)]},
            notes=['Being available is not enough: the grant must leave the system safe.'], tags=['avoidance'])
+# Resource-request algorithm: (1) request must not exceed the process's remaining need, (2) it must not exceed what is
+# available, (3) pretend to grant it and check the new state is still safe. Only then is it really granted.
 def bankers_request(p):
     _check_state(p)
     n, m = p['n'], p['m']
@@ -161,6 +173,8 @@ def bankers_request(p):
                                'available': [rng.randint(0, 1) for _ in range(2)]},
            notes=['Unlike Banker\'s, detection uses current requests, not maximum claims.', 'Run periodically; recovery means killing or rolling back a process.'],
            tags=['detection'])
+# Detection uses CURRENT requests instead of maximum claims. Processes holding nothing cannot be deadlocked, so they
+# start as finished. Anything still unfinished at the end is deadlocked. The wait-for graph is built for display.
 def deadlock_detect(p):
     n, m = p['n'], p['m']
     alloc, req = p['allocation'], p['request']
@@ -208,6 +222,9 @@ def deadlock_detect(p):
            example={'edges': ['R1 -> P1', 'P1 -> R2', 'R2 -> P2', 'P2 -> R1', 'R3 -> P3']},
            random=lambda rng: {'edges': _rag_random(rng)},
            notes=['With multiple instances per resource, a cycle only signals possible deadlock.'], tags=['detection', 'graph'])
+# With ONE instance per resource a deadlock is exactly a cycle in the resource-allocation graph.
+# Edges: R -> P means the resource is assigned to the process; P -> R means the process is requesting it.
+# Depth-first search keeps the current path; meeting a node that is already on the path reveals a cycle.
 def rag_cycle(p):
     edges = []
     for line in p['edges']:

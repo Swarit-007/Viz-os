@@ -1,3 +1,6 @@
+// viz/banker.js: Banker's algorithm and deadlock detection. Shows the matrices with the process being examined highlighted
+// (green = can finish, red = must wait), the work vector, and which processes have finished.
+
 import { h } from '../dom.js';
 import { graphFig } from './graph.js';
 import { chip } from '../util.js';

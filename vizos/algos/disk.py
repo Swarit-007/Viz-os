@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 
 from ..core import Choice, Int, IntList, Trace, ValidationError, algorithm, result, tile
 
+# The textbook disk-scheduling example: head at cylinder 53 on a 200-cylinder disk.
 REQS = [98, 183, 37, 122, 14, 124, 65, 67]
 NAMES = {'fcfs': 'FCFS', 'sstf': 'SSTF', 'scan': 'SCAN', 'cscan': 'C-SCAN', 'look': 'LOOK', 'clook': 'C-LOOK'}
 SUMMARY = {
@@ -35,6 +36,12 @@ PSEUDO = {
 }
 
 
+# Decide the order in which the head visits cylinders. Returns [(cylinder, kind)] where kind is:
+#   req      - the head arrives at a request and services it
+#   edge     - the head travels to the physical end of the disk (SCAN / C-SCAN) without a request there
+#   jump     - a non-servicing return seek to the opposite end (C-SCAN)
+#   jumpreq  - a return seek that lands on the farthest waiting request (C-LOOK)
+# `above` are requests at/above the head (ascending), `below_desc` those below it (descending), etc.
 def head_order(alg: str, reqs: List[int], head: int, size: int, up: bool):
     """[(cylinder, kind)] with kind in req, edge, jump, jumpreq."""
     R = lambda cs: [(c, 'req') for c in cs]  # noqa: E731
@@ -77,6 +84,7 @@ def head_order(alg: str, reqs: List[int], head: int, size: int, up: bool):
     return order
 
 
+# Walk the visiting order and add up the distance moved. Return jumps are counted as movement here.
 def simulate_disk(alg: str, reqs: List[int], head: int, size: int, up: bool):
     order = head_order(alg, reqs, head, size, up)
     steps, pos, total, jump_total = [], head, 0, 0
@@ -91,6 +99,7 @@ def simulate_disk(alg: str, reqs: List[int], head: int, size: int, up: bool):
     return steps, total, jump_total
 
 
+# Factory: registers one algorithm per scheduling policy.
 def _disk(alg):
     def run(p):
         if p['head'] >= p['size']:
@@ -134,6 +143,7 @@ for _a in NAMES:
 
 
 # --------------------------------------------------------------------------- RAID
+# Random but always valid RAID configuration (each level has its own rule about how many disks it needs).
 def _random_raid(rng):
     level = rng.choice(['0', '1', '5', '10'])
     disks = {'0': rng.randint(2, 6), '1': 2, '5': rng.randint(3, 6), '10': rng.choice([4, 6])}[level]
@@ -151,6 +161,11 @@ def _random_raid(rng):
            example={'level': '5', 'disks': 4, 'blocks': 12, 'failed': 2},
            random=lambda rng: _random_raid(rng),
            notes=['Capacity, throughput and fault tolerance trade against each other.', 'RAID 5 tolerates one failed disk; RAID 0 tolerates none.'], tags=['storage', 'redundancy'])
+# Lay blocks out over the disks stripe by stripe:
+#   RAID 0  data striped across all disks       RAID 1  every block mirrored on two disks
+#   RAID 5  data striped + one rotating parity block per stripe (parity = XOR of the stripe's data)
+#   RAID 10 mirrored pairs, striped across the pairs
+# Then fail one disk and check whether every lost block can be rebuilt (from the mirror or from parity).
 def raid(p):
     level, n, blocks, failed = p['level'], p['disks'], p['blocks'], p['failed']
     if failed > n:

@@ -5,10 +5,13 @@ from typing import Any, Dict, List
 
 from ..core import Choice, Int, IntList, Trace, algorithm, result, tile
 
+# REFS is the classic reference string (FIFO 15 faults, LRU 12, Optimal 9 with 3 frames).
+# BELADY is the string that makes FIFO fault MORE with 4 frames (10) than with 3 (9).
 REFS = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1]
 BELADY = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]
 
 
+# Random reference string with some locality (a page is often a repeat of a recent one), so policies differ visibly.
 def _random_refs(rng, length=None):
     length = length or rng.randint(14, 22)
     span = rng.randint(4, 8)
@@ -19,6 +22,10 @@ def _random_refs(rng, length=None):
 
 
 # --------------------------------------------------------------------------- page replacement engine
+# One engine for all six replacement policies. `slots` is the physical frames; each request is either a hit
+# (page already resident) or a fault, and on a fault with no free frame `policy` chooses a victim.
+# Bookkeeping per page: loaded_at (for FIFO), last_used (LRU/MRU), freq (LFU), and reference bits + a hand (Clock).
+# Returns one step dict per request plus the total fault count.
 def simulate_replacement(policy: str, frames: int, refs: List[int]):
     """Returns (steps, faults). Slots keep their frame position, like a textbook table."""
     slots: List[Any] = [None] * frames
@@ -51,10 +58,13 @@ def simulate_replacement(policy: str, frames: int, refs: List[int]):
                 elif policy == 'lfu':
                     victim = min(slots, key=lambda x: (freq[x], loaded_at[x]))
                     step['why'] = f'{victim} was used least often ({freq[victim]}x)'
+                # Optimal looks at the FUTURE of the reference string: evict the page used farthest away (or never again).
                 elif policy == 'optimal':
                     future = refs[i + 1:]
                     victim = max(slots, key=lambda x: future.index(x) if x in future else len(refs) + 1)
                     step['why'] = f'{victim} is not needed again' if victim not in future else f'{victim} is needed farthest in the future'
+                # Clock: sweep the hand around the frames. A page with reference bit 1 gets a second chance (bit cleared);
+                # the first page found with bit 0 is the victim.
                 else:  # clock
                     while ref_bit[hand]:
                         ref_bit[hand] = 0
@@ -96,6 +106,7 @@ NOTES = {
 LABELS = {'fifo': 'FIFO', 'lru': 'LRU', 'mru': 'MRU', 'lfu': 'LFU', 'optimal': 'Optimal', 'clock': 'Clock'}
 
 
+# Factory: register one algorithm per policy so each has its own pseudocode, summary and notes.
 def _replacement(policy):
     pseudo = ['for each page request:', '    if the page is in a frame: HIT' + HIT_TEXT[policy], '    else: PAGE FAULT',
               '        if a frame is free: use it', '        else: ' + VICTIM_TEXT[policy], '        load the page into the frame']
@@ -140,6 +151,8 @@ for _p in LABELS:
            example={'refs': BELADY, 'max_frames': 7}, random=lambda rng: {'refs': _random_refs(rng), 'max_frames': 7},
            notes=['The classic string 1 2 3 4 1 2 5 1 2 3 4 5 gives FIFO 9 faults with 3 frames and 10 with 4.',
                   'LRU and Optimal are stack algorithms and never show the anomaly.'], tags=['page replacement'])
+# Run FIFO, LRU and Optimal for every frame count from 1 to max_frames and plot faults against frames.
+# A FIFO point that is higher than the one before it is Belady's anomaly.
 def belady(p):
     xs = list(range(1, p['max_frames'] + 1))
     series = [{'label': LABELS[pol], 'y': [simulate_replacement(pol, f, p['refs'])[1] for f in xs]} for pol in ('fifo', 'lru', 'optimal')]
@@ -169,6 +182,8 @@ def belady(p):
            example={'refs': [1, 2, 1, 3, 1, 2, 4, 4, 4, 5, 6, 5, 6, 5, 6, 1, 2, 3, 1, 2], 'window': 4},
            random=lambda rng: {'refs': _random_refs(rng, 24), 'window': rng.randint(3, 6)},
            notes=['A program moves through phases (localities); its working set size rises and falls with them.'], tags=['thrashing'])
+# Working set W(t, delta) = the distinct pages referenced in the last `delta` references up to time t.
+# Its size over time shows program phases; a process needs about that many frames to avoid thrashing.
 def working_set(p):
     refs, w = p['refs'], p['window']
     sizes, sets = [], []
@@ -202,6 +217,11 @@ def working_set(p):
                                'addresses': [rng.randint(0, 6143) for _ in range(8)], 'tlb_size': rng.randint(1, 4), 't_tlb': 10, 't_mem': 100},
            notes=['effective access time = h x (t_tlb + t_mem) + (1 - h) x (t_tlb + 2 x t_mem), ignoring page-fault service time.',
                   'Locality is why a tiny TLB works so well.'], tags=['tlb', 'paging'])
+# Translate virtual addresses: page = address // page_size, offset = address % page_size.
+# Look in the TLB first (a small cache of recent page -> frame mappings). On a miss read the page table in memory;
+# if the page is not resident that is a page fault and the OS loads it into a fresh frame. Finally
+# physical address = frame * page_size + offset.
+# Effective access time (EAT) blends the fast TLB-hit path and the slower two-memory-access miss path.
 def tlb(p):
     size = int(p['page_size'])
     table = list(p['page_table'])
@@ -262,6 +282,9 @@ def tlb(p):
            example={'bits_outer': 4, 'bits_inner': 4, 'bits_offset': 8, 'addresses': [0x0123, 0x0456, 0x0F23, 0x8123, 0x8124, 0xC777, 0x0125]},
            random=lambda rng: {'bits_outer': 4, 'bits_inner': 4, 'bits_offset': 8, 'addresses': [rng.choice([0, 0x4000, 0x8000, 0xC000]) + rng.randint(0, 0x3FFF) for _ in range(8)]},
            notes=['A single-level table for this address space would need every entry allocated; two levels allocate only what is touched.'], tags=['page table'])
+# The virtual address is cut into [outer index | inner index | offset]. The outer table points to inner tables,
+# which are created only the first time a region is touched. That is the whole point: sparse address spaces
+# need far fewer table entries than one giant single-level table.
 def two_level(p):
     bo, bi, bf = p['bits_outer'], p['bits_inner'], p['bits_offset']
     total = bo + bi + bf

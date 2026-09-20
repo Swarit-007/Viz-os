@@ -5,6 +5,9 @@ from typing import Any, Dict, List
 from ..core import Choice, Col, Int, IntList, Lines, Table, Trace, ValidationError, algorithm, result, tile
 
 # --------------------------------------------------------------------------- partition fits
+# ---- Partition allocation (fit strategies) -------------------------------------------------------------
+# Fixed memory blocks; each process goes into ONE block that is large enough. The strategies differ in which
+# candidate block they choose, which changes how memory fragments.
 FIT_NAMES = {'first': 'First Fit', 'best': 'Best Fit', 'worst': 'Worst Fit', 'next': 'Next Fit'}
 FIT_TEXT = {
     'first': ('take the first block that is large enough', 'Fast; fragments the start of memory.'),
@@ -16,6 +19,7 @@ BLOCKS = [100, 500, 200, 300, 600]
 PROCS = [212, 417, 112, 426]
 
 
+# Factory: registers first/best/worst/next fit. `free[i]` is the space left in block i; `allocs[i]` lists what lives there.
 def _fit(strategy):
     def run(p):
         blocks, procs = p['blocks'], p['procs']
@@ -26,6 +30,7 @@ def _fit(strategy):
         failed = 0
         for k, size in enumerate(procs):
             name = f'P{k + 1}'
+            # Candidate blocks: those with enough free space left. The strategy picks one of them.
             fits = [i for i, b in enumerate(free) if b >= size]
             pick = None
             if fits:
@@ -35,6 +40,7 @@ def _fit(strategy):
                     pick = min(fits, key=lambda i: (free[i], i))
                 elif strategy == 'worst':
                     pick = max(fits, key=lambda i: (free[i], -i))
+                # Next fit resumes scanning from the block used last time, wrapping around to the start.
                 else:
                     pick = next((i for i in fits if i >= last), fits[0])
             if pick is None:
@@ -53,6 +59,7 @@ def _fit(strategy):
         summary = [tile('Allocated', len(procs) - failed, tone='good'), tile('Failed', failed, tone='bad' if failed else None),
                    tile('Total free', total_free), tile('Largest free block', largest, 'external fragmentation')]
         verdict = None
+        # External fragmentation: enough memory is free in total, but split so no single block can hold the request.
         if failed and total_free >= min(procs):
             verdict = {'ok': False, 'label': 'External fragmentation', 'text': f'{total_free} units are free in total, but no single block can hold the failed request.'}
         return result(f'fit-{strategy}', 'partitions', summary, trace, {'blocks': blocks, 'snapshots': snaps}, None, verdict)
@@ -73,7 +80,12 @@ for _f in FIT_NAMES:
     _fit(_f)
 
 
+# ---- Buddy system -------------------------------------------------------------------------------------------
+# Memory is a power-of-two size. A request rounds UP to a power of two (the rounding waste is internal
+# fragmentation). To satisfy it, larger free blocks are split in halves (buddies). A freed block merges with its
+# buddy whenever the buddy is free too. A block's buddy address is found with XOR: start ^ size.
 # --------------------------------------------------------------------------- buddy system
+# Parse the operation lines the user typed: 'alloc NAME SIZE' or 'free NAME'.
 def _parse_ops(lines):
     ops = []
     for i, raw in enumerate(lines):
@@ -124,6 +136,7 @@ def buddy(p):
                 raise ValidationError(f'{op["name"]} is already allocated')
             if op['size'] < 1 or op['size'] > memory:
                 raise ValidationError(f'Request {op["size"]} is outside 1..{memory}')
+            # Round up to the next power of two (bit_length trick), but never below the smallest allowed block.
             size = max(min_block, 1 << (op['size'] - 1).bit_length())
             lines += [0, 1, 2]
             donor = next((s for s in sorted(free) if s >= size and free[s]), None)
@@ -149,6 +162,7 @@ def buddy(p):
             start, size = b['start'], b['size']
             notes.append(f'{op["name"]} frees its block of {size} at {start}.')
             lines += [5, 6]
+            # Coalesce: while this block's buddy is also free, merge the pair into one block of double size.
             while size < memory and (start ^ size) in free.get(size, []):
                 free[size].remove(start ^ size)
                 start = min(start, start ^ size)
@@ -169,6 +183,7 @@ def buddy(p):
                                                        'snapshots': snaps})
 
 
+# Random alloc/free script that is guaranteed to succeed, so the Randomise button never produces an error.
 def _random_buddy_ops(rng):
     """Sizes stay at or below 1/8 of memory and at most 5 blocks are live, so every allocation succeeds."""
     live, out = [], []
@@ -183,6 +198,8 @@ def _random_buddy_ops(rng):
 
 
 # --------------------------------------------------------------------------- segmentation
+# ---- Segmentation ----------------------------------------------------------------------------------------------
+# A logical address is (segment, offset). The segment table gives each segment a base address and a limit.
 SEGS = [{'id': 'code', 'base': 0, 'limit': 300}, {'id': 'data', 'base': 500, 'limit': 200}, {'id': 'stack', 'base': 800, 'limit': 150}]
 
 
@@ -201,6 +218,8 @@ SEGS = [{'id': 'code', 'base': 0, 'limit': 300}, {'id': 'data', 'base': 500, 'li
            random=lambda rng: _random_segments(rng),
            notes=['Segments match how programmers think (code, data, stack) but cause external fragmentation.', 'Hardware raises a trap when the offset reaches the limit.'],
            tags=['protection'])
+# Validate the table (no overlaps, nothing past the end of memory), lay the segments out with the holes between them,
+# then translate each access: fault if the segment is unknown or offset >= limit, else physical = base + offset.
 def segmentation(p):
     memory = p['memory']
     segs = p['segments']

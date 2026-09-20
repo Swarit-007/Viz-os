@@ -6,6 +6,10 @@ from typing import Any, Dict, List
 from ..core import Bool, Choice, Int, Seed, Trace, algorithm, result, tile
 
 # ============================================================================ dining philosophers
+# ---- Dining philosophers --------------------------------------------------------------------------------
+# Five philosophers share five forks. To eat, one needs the fork on each side. The four variants below differ
+# only in HOW they pick forks up, which decides whether a circular wait (deadlock) can happen.
+# `tags` maps a kind of event (think, first fork, second fork, eat, ...) to a pseudocode line for highlighting.
 DINING = {
     'naive': {
         'name': 'Dining Philosophers: naive',
@@ -42,11 +46,14 @@ DINING = {
 }
 
 
+# Factory: registers one algorithm per strategy so each gets its own pseudocode and notes.
 def _philosophers(strategy):
     spec = DINING[strategy]
 
     def run(p):
         n, ticks, rng = p['n'], p['ticks'], random.Random(p['seed'])
+        # Each philosopher is a tiny state machine: thinking -> hungry -> eating -> thinking.
+        # Fork k sits between philosopher k-1 and k; philosopher i's left fork is i and right fork is (i+1) % n.
         THINK, HUNGRY, EAT = 'thinking', 'hungry', 'eating'
         state, held = [THINK] * n, [[] for _ in range(n)]
         timer = [0 if p['all_hungry'] else rng.randint(1, 4) for _ in range(n)]
@@ -54,6 +61,7 @@ def _philosophers(strategy):
         meals, seated, has_seat = [0] * n, 0, [False] * n
         trace, snaps, dead_at = Trace(), [], None
 
+        # The order in which philosopher i reaches for forks. This single function is what each strategy changes.
         def order(i):
             left, right = i, (i + 1) % n
             if strategy == 'ordered':
@@ -121,6 +129,7 @@ def _philosophers(strategy):
                             seated -= 1
                         events.append(f'P{i + 1} puts down both forks and thinks')
                         tags.add('release')
+            # Deadlock = nobody could do anything this tick, and everybody is hungry holding exactly one fork.
             dead = (not progress) and all(s == HUNGRY for s in state) and all(len(h) == 1 for h in held) and strategy != 'waiter'
             snaps.append({'philosophers': [{'id': i + 1, 'state': state[i], 'holding': [f + 1 for f in held[i]], 'meals': meals[i]}
                                            for i in range(n)],
@@ -157,6 +166,9 @@ for _s in DINING:
 
 
 # ============================================================================ producer-consumer
+# ---- Producer-consumer -----------------------------------------------------------------------------------
+# A bounded buffer shared by producers and consumers. With semaphores (`safe`), a producer waits on `empty` and a
+# consumer waits on `full`. Without them the same timing overflows the buffer and reads from an empty one.
 def _prodcons(safe: bool):
     def run(p):
         size, n_p, n_c = p['buffer'], p['producers'], p['consumers']
@@ -244,6 +256,10 @@ _prodcons(False)
 
 
 # ============================================================================ race condition
+# ---- Race condition ----------------------------------------------------------------------------------------
+# `counter += 1` is really three steps: load, add, store. A seeded scheduler interleaves the threads one step at a
+# time. Without a lock two threads can load the same value, so one increment overwrites the other (a lost update).
+# With a lock, load-add-store form a critical section that only one thread can be inside.
 def _race(lock: bool):
     def run(p):
         threads, incs, rng = p['threads'], p['increments'], random.Random(p['seed'])
@@ -254,6 +270,7 @@ def _race(lock: bool):
             runnable = [t for t in range(threads) if done[t] < incs and not (lock and pc[t] == 0 and owner not in (None, t))]
             t = rng.choice(runnable)
             lost, ln = False, 0
+            # pc[t] is which of the three instructions thread t executes next (0 load, 1 add, 2 store).
             if pc[t] == 0:
                 if lock:
                     owner = t
@@ -264,6 +281,7 @@ def _race(lock: bool):
                 op, ln = f'add 1 (register = {regs[t]})', 2 if lock else 1
             else:
                 counter = regs[t]
+                # A store is a lost update when it does not equal the previous counter value plus one.
                 lost = counter != before + 1
                 op, ln = f'store counter = {counter}', 3 if lock else 2
                 done[t] += 1
@@ -300,6 +318,9 @@ _race(True)
 
 
 # ============================================================================ readers-writers
+# ---- Readers-writers -----------------------------------------------------------------------------------------
+# Any number of readers may read together, but a writer needs the data alone. Giving readers priority lets a
+# steady stream of readers starve writers; giving writers priority can starve readers.
 @algorithm(id='readers-writers', name='Readers-Writers', category='sync', viz='sync-state', family='rw',
            summary='Many readers may share data, but a writer needs it alone. Reader priority can starve writers.',
            complexity={'time': 'O(ticks x threads)', 'space': 'O(threads)', 'note': ''},
@@ -381,6 +402,9 @@ def readers_writers(p):
 
 
 # ============================================================================ Peterson
+# ---- Peterson's algorithm ------------------------------------------------------------------------------------
+# Two threads, two `flag` variables and a `turn` variable give mutual exclusion with no special hardware.
+# Turning the protocol off lets both threads into the critical section, which the simulation flags as a collision.
 @algorithm(id='peterson', name='Peterson\'s Algorithm', category='sync', viz='sync-state', family='mutex',
            summary='Two threads share a critical section using only two flags and a turn variable. Switch it off to see them collide.',
            complexity={'time': 'O(ticks)', 'space': 'O(1)', 'note': 'Works for two threads.'},

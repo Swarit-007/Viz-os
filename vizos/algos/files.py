@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 
 from ..core import Col, Int, IntList, Table, Trace, ValidationError, algorithm, result, tile
 
+# Default example: four files allocated in order onto a disk where some blocks are already in use (fragmented).
 FILES = [{'id': 'A', 'size': 4}, {'id': 'B', 'size': 5}, {'id': 'C', 'size': 3}, {'id': 'D', 'size': 6}]
 RESERVED = [2, 3, 7, 8, 12, 13, 20, 26]
 
@@ -19,6 +20,11 @@ def _random(rng):
             'files': [{'id': chr(65 + i), 'size': rng.randint(2, 8)} for i in range(rng.randint(3, 6))]}
 
 
+# Factory for the three allocation methods. All of them place the same list of files onto the same disk.
+#   contiguous: needs one unbroken run of free blocks (first fit) - fast reads, suffers external fragmentation
+#   linked:     takes any free blocks and chains them with pointers - no fragmentation, slow random access
+#   indexed:    one extra index block lists all data blocks - random access in two reads
+# One playback step per file; `snaps` stores the whole block map after each file.
 def _alloc(method):
     def run(p):
         total, reserved = p['blocks'], set(p['reserved'])
@@ -31,6 +37,7 @@ def _alloc(method):
             free = [i for i, c in enumerate(cells) if c['kind'] == 'free']
             blocks: List[int] = []
             extra = ''
+            # Find where this file would go under the chosen method (blocks stays empty if it cannot be placed).
             if method == 'contiguous':
                 run_len, start = 0, None
                 for i, c in enumerate(cells):
@@ -81,6 +88,7 @@ def _alloc(method):
             pl = next((x for x in placed if x['id'] == f['id']), None)
             reads = 'fails' if pl is None else {'contiguous': '1', 'linked': str(pl['size']), 'indexed': '2'}[method]
             rows.append([{'proc': f['id']}, f['size'], reads])
+        # How many disk reads does it take to reach the LAST block of each file? This is where the methods differ most.
         table = {'title': 'Reads needed to reach each file\'s last block', 'headers': ['File', 'Blocks', 'Disk reads'], 'rows': rows}
         verdict = None
         if failed:
@@ -122,6 +130,9 @@ for _m in ('contiguous', 'linked', 'indexed'):
            example={'block_size': 4096, 'pointer': 4, 'direct': 12, 'file_size': 5000, 'probe': 4200},
            random=lambda rng: {'block_size': rng.choice([1024, 4096]), 'pointer': 4, 'direct': 12, 'file_size': rng.choice([20, 500, 5000, 900000]), 'probe': rng.randint(0, 5000)},
            notes=['Small files (the common case) need no indirection at all.', 'Each extra level adds one disk read for the pointer block.'], tags=['unix'])
+# A Unix inode has `direct` pointers, then one single-indirect, one double-indirect and one triple-indirect block.
+# A pointer block holds block_size / pointer_size pointers. Walk the levels to see how many blocks each level holds,
+# where the requested byte lands, and how many disk reads reaching it costs (1 for the inode + 1 per indirection).
 def inode(p):
     bs, ptr, direct = p['block_size'], p['pointer'], p['direct']
     per = bs // ptr

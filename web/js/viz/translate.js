@@ -1,3 +1,6 @@
+// viz/translate.js: address translation figures. translate() walks one virtual address through TLB, page table and frame;
+// multilevel() shows the outer index / inner index / offset split and which inner tables exist.
+
 import { h } from '../dom.js';
 
 const box = (label, value, cls = '') => h('div', { class: `flow-box ${cls}` }, h('small', null, label), h('b', null, value));

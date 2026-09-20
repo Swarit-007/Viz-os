@@ -1,3 +1,5 @@
+// viz/misc.js: two small one-off figures: the Unix inode levels and the fork() process tree.
+
 import { h, svg } from '../dom.js';
 import { ink } from '../util.js';
 
@@ -15,6 +17,7 @@ export function inode(res, cursor) {
 }
 
 // Fork tree: nodes laid out by depth. cursor = snapshot index (-1 = only the first process).
+// Lay out the process tree: leaves get evenly spaced x positions and every parent is centred above its children.
 export function tree(res, cursor) {
     const snaps = res.data.snapshots;
     const nodes = cursor < 0 ? [{ id: 'P0', parent: null, line: null, prints: 0 }] : snaps[Math.min(cursor, snaps.length - 1)];

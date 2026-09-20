@@ -1,3 +1,5 @@
+// icons.js: the icon set. Icons are tiny SVG paths drawn on a 20x20 grid with one stroke width, so no icon library is needed.
+
 import { svg } from './dom.js';
 
 // One icon set: 20px grid, 1.6 stroke, round caps. Drawn here so there is no icon dependency.

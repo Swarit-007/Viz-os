@@ -1,3 +1,5 @@
+// viz/curve.js: a small line chart (Belady's anomaly: faults vs frames; working-set size vs time). Points appear up to the cursor.
+
 import { svg } from '../dom.js';
 
 const W = 760;

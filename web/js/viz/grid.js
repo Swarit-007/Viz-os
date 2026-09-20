@@ -1,3 +1,6 @@
+// viz/grid.js: a grid of blocks: file-system disks, RAID stripes and cache sets. Each snapshot is the whole grid after one step.
+// Cell kinds (free, reserved, data, index, parity, mirror, lost) decide the styling; `owner` decides the highlighter colour.
+
 import { h } from '../dom.js';
 import { ink } from '../util.js';
 

@@ -2,6 +2,7 @@
 
 from ..core import Choice, Int, IntList, Lines, Trace, ValidationError, algorithm, result, tile
 
+# Default program for the fork tree: two unconditional forks then a print.
 PROGRAM = ['fork', 'fork', 'print']
 
 
@@ -14,6 +15,11 @@ PROGRAM = ['fork', 'fork', 'print']
            params=[Lines('program', 'Program', PROGRAM, 16, 'Lines: fork, fork-if-parent, fork-if-child, print', 'fork')],
            example={'program': PROGRAM}, random=lambda rng: {'program': [rng.choice(['fork', 'fork', 'fork-if-parent', 'fork-if-child', 'print']) for _ in range(rng.randint(3, 5))]},
            notes=['Two unconditional forks create 4 processes, not 3.', 'if (fork() == 0) style code is fork-if-child in this notation.'], tags=['process'])
+# Interpret a tiny program where each line is executed by every process that reaches it.
+#   fork            - the current process creates a child (child continues at the NEXT line)
+#   fork-if-child   - fork only in a process that itself was created by a fork
+#   fork-if-parent  - fork only in the process that did the forking
+# `is_child` mirrors the return value of the most recent fork() (0 in the child). The tree is built as processes are created.
 def fork_tree(p):
     prog = p['program']
     for line in prog:
@@ -25,6 +31,7 @@ def fork_tree(p):
     trace = Trace()
     snaps = []
 
+    # Run `pid` from line `pc` to the end. A fork recursively runs the new child before the parent continues.
     def execute(pid, pc, is_child):
         for i in range(pc, len(prog)):
             ins = prog[i]
@@ -60,6 +67,9 @@ def fork_tree(p):
            random=lambda rng: {'lines': 8, 'ways': rng.choice(['1', '2', '4']), 'block_size': 16, 'addresses': [rng.choice([0, 128, 256, 384]) + rng.choice([0, 16, 32]) for _ in range(12)]},
            notes=['Addresses whose blocks share a set collide: conflict misses. More ways relieve them.', 'The first touch of any block is a compulsory miss no cache can avoid.'],
            tags=['cache'])
+# Set-associative cache with LRU replacement. block = address // block_size; set = block mod number_of_sets;
+# tag = block // number_of_sets. A hit needs the tag to be present in one of the set's ways.
+# A miss is 'compulsory' the first time a block is ever touched; otherwise it is a conflict (evicted earlier).
 def cache(p):
     ways = int(p['ways'])
     if p['lines'] % ways:

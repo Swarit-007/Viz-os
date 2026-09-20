@@ -1,3 +1,6 @@
+// viz/memory.js: address-space bars. memory() shows buddy blocks or segments with an optional red marker for the current
+// physical address; partitions() shows fixed blocks with the processes placed inside them.
+
 import { h } from '../dom.js';
 import { ink } from '../util.js';
 

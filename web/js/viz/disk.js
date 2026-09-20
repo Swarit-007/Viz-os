@@ -1,3 +1,5 @@
+// viz/disk.js: disk-head movement. x = cylinder number, y = time (one row per seek). Dashed red lines are return jumps.
+
 import { svg } from '../dom.js';
 
 const W = 760;

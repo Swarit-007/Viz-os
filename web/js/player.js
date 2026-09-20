@@ -1,7 +1,12 @@
+// player.js: the playback bar under every figure (first, previous, play/pause, next, slider, speed).
+// A run has `count` steps, so the player has frames 0..count: frame 0 is 'before anything happened' and frame n shows
+// the state after step n. Each frame change calls onFrame(frame); the page redraws the figure and pseudocode from it.
+
 import { h } from './dom.js';
 import { icon } from './icons.js';
 
 // Playback bar: frames run 0..count. onFrame(frame) redraws the figure.
+// `initial` is the starting frame. Pages start at the last frame (a finished picture) or at 0 when they auto-play.
 export function player({ count, onFrame, initial = count }) {
     let frame = initial;
     let timer = null;
@@ -24,6 +29,7 @@ export function player({ count, onFrame, initial = count }) {
         playBtn.replaceChildren(icon('play'));
         playBtn.setAttribute('aria-label', 'Play');
     }
+    // Play or pause. Pressing play on the last frame restarts from the beginning.
     function toggle(resume = false) {
         if (timer) { stop(); return; }
         if (frame >= count && !resume) go(0);
@@ -37,6 +43,7 @@ export function player({ count, onFrame, initial = count }) {
         playBtn,
         h('button', { type: 'button', class: 'btn btn-icon', 'aria-label': 'Next step', title: 'Next (])', onClick: () => { stop(); go(frame + 1); } }, icon('next')),
         slider, label, rate);
+    // Expose controls so keyboard shortcuts in main.js can drive the player.
     Object.assign(el, { toggle: () => toggle(), step: (d) => { stop(); go(frame + d); }, go, stop, play: () => { if (!timer) { go(0); toggle(true); } } });
     go(frame);
     return el;

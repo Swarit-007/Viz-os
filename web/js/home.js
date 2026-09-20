@@ -1,8 +1,13 @@
+// home.js: the front page: headline, a live Round Robin demo, index tabs and the table of contents.
+// The contents list is generated from the catalog, so new algorithms appear here automatically.
+
 import { getCatalog, runAlgorithm } from './api.js';
 import { h, replace, svg } from './dom.js';
 import { icon } from './icons.js';
 import { renderFigure } from './viz/index.js';
 
+// A real (not faked) figure: it runs Round Robin on the server and loops through the steps as an animation.
+// The loop stops itself when the home page is no longer on screen.
 function demo() {
     const host = h('div', { class: 'demo-figure' });
     const cap = h('p', { class: 'caption' });
@@ -20,6 +25,7 @@ function demo() {
     return h('figure', { class: 'figure hero-figure' }, h('div', { class: 'fig-frame' }, host), h('figcaption', null, h('span', { class: 'fig-num' }, 'Fig. 0'), cap));
 }
 
+// Group the catalog by chapter and number the entries continuously (01, 02, ...) like the contents of a book.
 export async function mountHome(root, controller) {
     const catalog = await getCatalog();
     const total = catalog.algorithms.length;

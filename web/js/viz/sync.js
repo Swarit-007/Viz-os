@@ -1,6 +1,11 @@
+// viz/sync.js: figures for the synchronisation chapter: the dining table, the bounded buffer, the racing counter and the
+// generic 'actors and shared variables' view used by readers-writers and Peterson's algorithm.
+
 import { h, svg } from '../dom.js';
 import { chip, ink } from '../util.js';
 
+// Philosophers sit on a circle. A fork moves toward whoever holds it, so you can literally see who has what.
+// A red philosopher means the deadlock snapshot.
 export function philosophers(res, cursor) {
     const { n, snapshots } = res.data;
     const snap = snapshots[Math.max(cursor, 0)];
@@ -50,6 +55,7 @@ export function buffer(res, cursor) {
             h('span', null, 'items ', h('b', null, `${fill}/${d.capacity}`)), snap.blocked?.length ? h('span', { class: 'blocked' }, 'blocked: ', snap.blocked.join(', ')) : null), chart);
 }
 
+// Shows the shared counter, each thread's private register, and the last few instructions, flagging lost updates.
 export function race(res, cursor) {
     const d = res.data;
     const snap = cursor < 0 ? null : d.snapshots[Math.min(cursor, d.snapshots.length - 1)];

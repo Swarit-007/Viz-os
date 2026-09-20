@@ -5,6 +5,8 @@ from typing import Any, Dict, List
 
 from ..core import Col, Int, Table, Trace, algorithm, result, tile
 
+# Classic periodic task set. Each task releases a job every `period`, needs `wcet` (worst-case execution time)
+# of CPU per job, and must finish within `deadline` of its release.
 TASKS = [{'id': 'T1', 'period': 4, 'wcet': 1, 'deadline': 4}, {'id': 'T2', 'period': 5, 'wcet': 2, 'deadline': 5},
          {'id': 'T3', 'period': 10, 'wcet': 3, 'deadline': 10}]
 
@@ -14,6 +16,7 @@ def tasks_param():
                                              Col('deadline', 'Deadline', 1, 100)], TASKS, max_rows=6, id_prefix='T')
 
 
+# Least common multiple of the periods = the hyperperiod, after which the whole schedule repeats.
 def _lcm(values):
     out = 1
     for v in values:
@@ -21,7 +24,11 @@ def _lcm(values):
     return out
 
 
+# Shared engine for EDF and RMS. They differ only in how the next job is picked:
+#   EDF: smallest absolute deadline (dynamic priority)   RMS: smallest period (fixed priority)
+# Simulated tick by tick; a job that is not finished at its deadline is recorded as a miss.
 def _simulate(alg_id, tasks, horizon, edf: bool):
+    # Simulate one hyperperiod (capped at 120 ticks) unless the user asked for a specific horizon.
     hyper = _lcm(t['period'] for t in tasks)
     end = min(horizon, hyper) if horizon else min(hyper, 120)
     jobs: List[Dict[str, Any]] = []
@@ -42,6 +49,7 @@ def _simulate(alg_id, tasks, horizon, edf: bool):
         if not ready:
             current = None
             continue
+        # Choose among released, unfinished jobs; ties break by release time then task name so runs are deterministic.
         key = (lambda j: (j['deadline'], j['release'], j['task'])) if edf else (lambda j: (j['period'], j['release'], j['task']))
         job = min(ready, key=key)
         if slices and slices[-1]['name'] == job['task'] and slices[-1]['start'] + slices[-1]['dur'] == t and current is job:
@@ -61,6 +69,7 @@ def _simulate(alg_id, tasks, horizon, edf: bool):
             marks.append({'t': job['deadline'], 'name': job['task'], 'kind': 'miss'})
             trace.add(f'Deadline miss: {job["task"]}#{job["job"]} needed to finish by t={job["deadline"]}.', [5], job['deadline'])
     trace.steps.sort(key=lambda s: s['at'])
+    # Utilisation U = sum(C/T). U > 1 can never be scheduled. RMS is guaranteed only up to n(2^(1/n) - 1) (~69%).
     util = sum(t['wcet'] / t['period'] for t in tasks)
     n = len(tasks)
     bound = n * (2 ** (1 / n) - 1)

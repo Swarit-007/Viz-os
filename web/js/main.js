@@ -1,3 +1,9 @@
+// main.js: application shell. Starts the router, the theme switch, the search palette and the keyboard shortcuts.
+//
+// Routes (URL hash):   #/  -> home        #/a/<id>?p=<encoded inputs>  -> one algorithm's page
+// `controller` is a small object the current page fills in (random, example, toggle, step) so a single global keyboard
+// handler can trigger actions on whichever page is open.
+
 import { getCatalog } from './api.js';
 import { h, replace } from './dom.js';
 import { icon } from './icons.js';
@@ -17,6 +23,8 @@ controller.surprise = async () => {
     go(algorithms[Math.floor(Math.random() * algorithms.length)].id);
 };
 
+// Called on load and whenever the URL hash changes. `token` guards against a slow page finishing after the user
+// has already navigated somewhere else.
 async function route() {
     const mine = ++token;
     const hash = location.hash.replace(/^#/, '');
@@ -36,6 +44,7 @@ async function route() {
     }
 }
 
+// Theme: 'paper' (light) or 'blueprint' (dark). Follows the system setting until the user picks one, then remembers it.
 // theme: paper (light) or blueprint (dark), following the system until chosen
 const root = document.documentElement;
 try { const saved = localStorage.getItem('vizos-theme'); if (saved) root.dataset.theme = saved; } catch (e) { /* storage blocked */ }
@@ -50,6 +59,8 @@ document.getElementById('search-btn').addEventListener('click', () => controller
 document.getElementById('surprise-btn').prepend(icon('shuffle'));
 document.getElementById('surprise-btn').addEventListener('click', () => controller.surprise());
 
+// Global shortcuts: / or Ctrl/Cmd+K search, R random input, E textbook example, Space play/pause, [ and ] step.
+// They are ignored while typing in a field or while the search dialog is open.
 addEventListener('keydown', (e) => {
     const t = e.target;
     const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || t.isContentEditable;

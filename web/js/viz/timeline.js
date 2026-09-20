@@ -1,9 +1,13 @@
+// viz/timeline.js: Gantt-style swim lanes. One lane per CPU, core, queue or real-time task.
+// Slices come from result.data.lanes; markers (arrivals, releases, deadlines, misses) from result.data.marks.
+
 import { svg } from '../dom.js';
 import { ink } from '../util.js';
 
 const W = 760;
 
 // Swim-lane timeline: one row per CPU / core / queue / task. cursor = time (slices after it are faded).
+// Slices that start after `cursor` are faded, the slice under the cursor is outlined, and a dashed playhead marks the time.
 export function timeline(res, cursor) {
     const { lanes, total, marks = [] } = res.data;
     const T = Math.max(total, 1);
@@ -31,6 +35,7 @@ export function timeline(res, cursor) {
         }
     });
 
+    // Markers: arrivals sit on the time axis; task releases (up arrow), deadlines (down arrow) and misses (red cross) sit on the task's own lane.
     // markers: arrivals sit on the axis; task releases / deadlines / misses sit on their own lane
     const axisY = top + lanes.length * rowH + 8;
     for (const m of marks) {

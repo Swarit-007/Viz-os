@@ -1,3 +1,6 @@
+// viz/frames.js: the page-replacement table. Columns are requests, rows are physical frames.
+// A yellow cell is the page just loaded, green/red headers mark hits and faults, and Clock shows its hand and reference bits.
+
 import { h } from '../dom.js';
 
 // Page-replacement table: one column per request, one row per frame. cursor = last request shown.

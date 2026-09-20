@@ -6,6 +6,8 @@ from typing import Any, Callable, Dict, List
 
 from ..core import Choice, Col, Int, Seed, Table, Trace, ValidationError, algorithm, result, tile
 
+# The classic four-process example used across operating-systems textbooks. Every scheduler's default input.
+# Fields: arrival = when it becomes ready, burst = CPU time needed, priority = lower number runs first.
 TEXTBOOK = [
     {'id': 'P1', 'arrival': 0, 'burst': 8, 'priority': 3},
     {'id': 'P2', 'arrival': 1, 'burst': 4, 'priority': 1},
@@ -14,6 +16,8 @@ TEXTBOOK = [
 ]
 
 
+# Build the 'Processes' table schema. Different schedulers need different extra columns:
+# priority (Priority), tickets (Lottery), nice (CFS).
 def procs_param(with_priority=False, with_tickets=False, with_nice=False):
     cols = [Col('arrival', 'Arrival', 0, 200), Col('burst', 'Burst', 1, 200)]
     if with_priority:
@@ -26,6 +30,7 @@ def procs_param(with_priority=False, with_tickets=False, with_nice=False):
         {**p, 'tickets': t, 'nice': n} for p, t, n in zip(TEXTBOOK, (30, 10, 50, 10), (0, -2, 3, 0))], max_rows=12)
 
 
+# A small random workload with the same columns; used by every scheduler's Randomise button.
 def random_procs(rng: random.Random, with_priority=False, with_tickets=False, with_nice=False):
     rows = []
     for i in range(rng.randint(4, 7)):
@@ -40,6 +45,8 @@ def random_procs(rng: random.Random, with_priority=False, with_tickets=False, wi
     return rows
 
 
+# Turn (first-run time, finish time) per process into the per-process results table.
+#   turnaround = finish - arrival   waiting = turnaround - burst   response = first run - arrival
 def _row(name, procs, first, fin):
     by = {p['id']: p for p in procs}
     out = []
@@ -52,6 +59,9 @@ def _row(name, procs, first, fin):
     return out
 
 
+# Shared tail of every scheduler: compute the averages, build the tiles and table, and package the result.
+# `lanes` is a list of {label, slices}: one lane for a single CPU, one per core for multi-core, one per queue for MLFQ.
+# A slice is {name, start, dur}. Utilisation is measured against total core-time available.
 def _finish(alg_id, name, procs, lanes, first, fin, trace, total, marks=None, extra=None, notes=None):
     rows = _row(name, procs, first, fin)
     n = len(rows)
@@ -77,6 +87,9 @@ def _finish(alg_id, name, procs, lanes, first, fin, trace, total, marks=None, ex
 
 
 # --------------------------------------------------------------------------- non-preemptive
+# Engine for schedulers that never interrupt a running process (FCFS, SJF, Priority, HRRN).
+# The only difference between them is `choose`, which picks the next process from the ready list.
+# `lines` maps events (pick, run, idle) to pseudocode line numbers so each step can highlight the right line.
 def _nonpreemptive(alg_id, name, procs, choose: Callable, reason: str, lines: Dict[str, int]):
     pending = sorted(procs, key=lambda p: (p['arrival'], p['id']))
     ready, t = [], 0
@@ -88,6 +101,7 @@ def _nonpreemptive(alg_id, name, procs, choose: Callable, reason: str, lines: Di
             trace.add(f'Nothing is ready. The CPU idles until t={pending[0]["arrival"]}.', [lines['idle']], pending[0]['arrival'])
             t = pending[0]['arrival']
             continue
+        # Ask the policy which ready process goes next, then run it to completion.
         p = choose(ready, t)
         ready.remove(p)
         first[p['id']] = t
@@ -100,6 +114,7 @@ def _nonpreemptive(alg_id, name, procs, choose: Callable, reason: str, lines: Di
     return _finish(alg_id, name, procs, [{'label': 'CPU', 'slices': slices}], first, fin, trace, t)
 
 
+# Metadata shared by the non-preemptive schedulers, to avoid repeating the same dictionary four times.
 def _np_meta(alg_id, name, summary, pseudocode, note_lines, complexity, notes, with_priority=False):
     return dict(id=alg_id, name=name, category='cpu', summary=summary, viz='timeline', family='cpu',
                 complexity=complexity, pseudocode=pseudocode, params=[procs_param(with_priority)],
@@ -158,6 +173,9 @@ def hrrn(p):
 
 
 # --------------------------------------------------------------------------- preemptive
+# Engine for schedulers that may interrupt (SRTF, preemptive Priority).
+# `rank` gives each ready process a sort key; the smallest key runs. The choice is re-made at every arrival,
+# so a running process is only ever run until the next arrival or until it finishes.
 def _preemptive(alg_id, name, procs, rank: Callable, reason: str, lines: Dict[str, int]):
     pending = sorted(procs, key=lambda p: (p['arrival'], p['id']))
     rem = {p['id']: p['burst'] for p in procs}
@@ -173,9 +191,11 @@ def _preemptive(alg_id, name, procs, rank: Callable, reason: str, lines: Dict[st
             continue
         p = min(ready, key=lambda x: (rank(x, rem), x['arrival'], x['id']))
         first.setdefault(p['id'], t)
+        # Run until the process ends or the next process arrives, whichever is first.
         run = rem[p['id']]
         if pending:
             run = min(run, pending[0]['arrival'] - t)
+        # Consecutive runs of the same process are merged into one bar in the chart.
         if slices and slices[-1]['name'] == p['id'] and slices[-1]['start'] + slices[-1]['dur'] == t:
             slices[-1]['dur'] += run
         else:
@@ -227,6 +247,9 @@ def priority_preemptive(p):
 
 
 # --------------------------------------------------------------------------- round robin
+# ---- Round Robin ---------------------------------------------------------------------------------------
+# Processes wait in a FIFO queue. Each gets at most `quantum` time units, then goes to the back if unfinished.
+# Subtle rule: processes that arrive while another is running join the queue BEFORE the preempted one is re-queued.
 @algorithm(id='rr', name='Round Robin', category='cpu', family='cpu', viz='timeline',
            summary='Each process gets one time quantum, then goes to the back of the queue.',
            complexity={'time': 'O(total burst / quantum)', 'space': 'O(n)', 'note': 'One step per time slice.'},
@@ -271,6 +294,7 @@ def rr(p):
     return _finish('rr', 'Round Robin', procs, [{'label': 'CPU', 'slices': slices}], first, fin, trace, t)
 
 
+# Lottery draws tickets with a seeded random generator, so a given seed always produces the same schedule.
 # --------------------------------------------------------------------------- lottery and CFS
 @algorithm(id='lottery', name='Lottery Scheduling', category='cpu', family='cpu', viz='timeline',
            summary='Each quantum, draw a random ticket; the holder runs. More tickets, more CPU on average.',
@@ -296,6 +320,7 @@ def lottery(p):
             trace.add(f'Nobody is ready. Idle until t={pending[0]["arrival"]}.', [0], pending[0]['arrival'])
             t = pending[0]['arrival']
             continue
+        # Draw a winning ticket number in [0, total) and find whose ticket range contains it.
         total = sum(x['tickets'] for x in ready)
         draw = rng.randrange(total)
         acc, winner = 0, None
@@ -334,6 +359,7 @@ def lottery(p):
                   'Fairness is by weighted virtual time, not by equal time.'], tags=['scheduling', 'linux'])
 def cfs(p):
     procs = p['processes']
+    # Linux maps nice values to weights: each nice step changes CPU share by about 25%. Nice 0 has weight 1024.
     weight = {x['id']: 1024 / (1.25 ** x['nice']) for x in procs}
     pending = sorted(procs, key=lambda x: (x['arrival'], x['id']))
     rem = {x['id']: x['burst'] for x in procs}
@@ -343,12 +369,14 @@ def cfs(p):
     while pending or ready:
         while pending and pending[0]['arrival'] <= t:
             x = pending.pop(0)
+            # A newly arrived process starts at the smallest vruntime in the queue so it cannot monopolise the CPU.
             vr[x['id']] = min((vr[r['id']] for r in ready), default=0.0)
             ready.append(x)
         if not ready:
             trace.add(f'Nothing is ready. Idle until t={pending[0]["arrival"]}.', [1], pending[0]['arrival'])
             t = pending[0]['arrival']
             continue
+        # The heart of CFS: run whoever has had the least (weighted) CPU so far.
         x = min(ready, key=lambda r: (vr[r['id']], r['arrival'], r['id']))
         total_w = sum(weight[r['id']] for r in ready)
         slice_ = max(p['min_slice'], int(p['latency'] * weight[x['id']] / total_w))
@@ -358,6 +386,7 @@ def cfs(p):
             slices[-1]['dur'] += ran
         else:
             slices.append({'name': x['id'], 'start': t, 'dur': ran})
+        # Virtual runtime grows slower for heavier (lower nice) processes, so they get picked more often.
         vr[x['id']] += ran * 1024 / weight[x['id']]
         rem[x['id']] -= ran
         t += ran
@@ -369,6 +398,9 @@ def cfs(p):
     return _finish('cfs', 'CFS', procs, [{'label': 'CPU', 'slices': slices}], first, fin, trace, t)
 
 
+# ---- Multilevel Feedback Queue --------------------------------------------------------------------------
+# Simulated one tick at a time because preemption and aging can change the decision at every tick.
+# State per process: its current queue level, time remaining, and when it last entered a queue (for aging).
 # --------------------------------------------------------------------------- MLFQ
 @algorithm(id='mlfq', name='Multilevel Feedback Queue', category='cpu', family='cpu', viz='timeline',
            summary='Queues with rising quanta. Using a whole quantum demotes a process; waiting too long promotes it (aging).',
@@ -395,6 +427,7 @@ def mlfq(p):
     first, fin, trace = {}, {}, Trace()
     current, used, t, new_slice = None, 0, 0, True
 
+    # Move every process whose arrival time has come into queue 1.
     def admit():
         while pending and pending[0]['arrival'] <= t:
             x = pending.pop(0)
@@ -404,6 +437,7 @@ def mlfq(p):
 
     while pending or any(queues) or current:
         admit()
+        # Aging: anything that has waited `aging` ticks in a lower queue moves up one level (prevents starvation).
         if aging:
             for lv in range(1, levels):
                 for x in list(queues[lv]):
@@ -412,6 +446,7 @@ def mlfq(p):
                         st[x['id']].update(level=lv - 1, since=t)
                         queues[lv - 1].append(x)
                         trace.add(f'{x["id"]} waited {aging} in queue {lv + 1}: promoted to queue {lv} (aging).', [2], t)
+        # Preemption: if any higher queue has work, the running process is put back and the higher one runs.
         if current is not None:
             lv = st[current['id']]['level']
             if any(queues[k] for k in range(lv)):
@@ -426,6 +461,7 @@ def mlfq(p):
                 continue
             current = queues[lv].pop(0)
             used, new_slice = 0, True
+        # Run the chosen process for exactly one tick, then decide what happens to it.
         s = st[current['id']]
         first.setdefault(current['id'], t)
         lane = lanes[s['level']]['slices']
@@ -441,6 +477,7 @@ def mlfq(p):
             fin[current['id']] = t
             trace.add(f'{current["id"]} finishes at t={t}.', [4, 5], t)
             current, used = None, 0
+        # Used its whole quantum without finishing: demote one level (the last queue just goes round again).
         elif used == quanta[s['level']]:
             target = min(s['level'] + 1, levels - 1)
             trace.add(f'{current["id"]} used its whole quantum in queue {s["level"] + 1}: '
@@ -452,6 +489,8 @@ def mlfq(p):
     return _finish('mlfq', 'MLFQ', procs, lanes, first, fin, trace, t, extra=[tile('Promotions', promos)])
 
 
+# ---- Multi-core -----------------------------------------------------------------------------------------
+# One shared ready queue feeds several identical cores. A process keeps its core while it keeps running (core affinity).
 # --------------------------------------------------------------------------- multi-core
 @algorithm(id='multicore', name='Multi-core Scheduling', category='cpu', viz='timeline',
            summary='One shared ready queue feeding several cores. See the speedup and the idle time.',
@@ -492,6 +531,7 @@ def multicore(p):
             nxt += 1
     while nxt < len(order) or ready or any(c is not None for c in on):
         admit()
+        # SRTF re-decides every tick: gather everything runnable, keep the `cores` shortest, and put the rest back.
         if policy == 'srtf':
             pool = ready + [c for c in on if c is not None]
             chosen: List[str] = []
@@ -542,6 +582,7 @@ def multicore(p):
                 if left[c] == 0:
                     ready.append(i)
                     on[c] = None
+    # Speed-up versus one core is shown by racing this run against the one-core version in the comparison panel.
     # speed-up against one core running the same policy is shown by the front end via a second run
     busy = [sum(s['dur'] for s in lane['slices']) for lane in lanes]
     extra = [tile(f'Core {c + 1} busy', f'{b / t * 100:.0f}%') for c, b in enumerate(busy)] if t else []
