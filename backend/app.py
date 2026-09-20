@@ -17,16 +17,19 @@ from werkzeug.exceptions import HTTPException  # noqa: E402
 
 from backend.modules.bankers_module import BankersModule  # noqa: E402
 from backend.modules.common import ValidationError  # noqa: E402
+from backend.modules.compare_module import CompareModule  # noqa: E402
 from backend.modules.deadlock_module import DeadlockModule  # noqa: E402
+from backend.modules.disk_scheduling_module import DiskSchedulingModule  # noqa: E402
 from backend.modules.fcfs_module import FCFSModule  # noqa: E402
 from backend.modules.memory_allocation_module import MemoryAllocationModule  # noqa: E402
 from backend.modules.page_replacement_module import PageReplacementModule  # noqa: E402
 from backend.modules.priority_module import PriorityModule  # noqa: E402
+from backend.modules.priority_preemptive_module import PreemptivePriorityModule  # noqa: E402
 from backend.modules.roundrobin_module import RoundRobinModule  # noqa: E402
 from backend.modules.sjf_module import SJFModule  # noqa: E402
 from backend.modules.srtf_module import SRTFModule  # noqa: E402
 
-__version__ = '2.0.0'
+__version__ = '2.1.0'
 
 FRONTEND_PATH = os.path.join(PROJECT_ROOT, 'frontend')
 
@@ -52,12 +55,15 @@ def create_app():
         'sjf': SJFModule(),
         'srtf': SRTFModule(),
         'priority': PriorityModule(),
+        'priority-preemptive': PreemptivePriorityModule(),
     }
     roundrobin = RoundRobinModule()
     bankers = BankersModule()
     deadlock = DeadlockModule()
     page_replacement = PageReplacementModule()
     memory_allocation = MemoryAllocationModule()
+    disk = DiskSchedulingModule()
+    compare = CompareModule()
 
     def json_body():
         data = request.get_json(silent=True)
@@ -101,12 +107,16 @@ def create_app():
                     'sjf': '/api/scheduling/sjf',
                     'srtf': '/api/scheduling/srtf',
                     'priority': '/api/scheduling/priority',
+                    'priority-preemptive': '/api/scheduling/priority-preemptive',
                     'roundrobin': '/api/scheduling/roundrobin',
                 },
                 'bankers': '/api/bankers',
+                'bankers_request': '/api/bankers/request',
                 'deadlock': '/api/deadlock',
                 'page_replacement': '/api/page-replacement',
                 'memory_allocation': '/api/memory-allocation',
+                'disk_scheduling': '/api/disk-scheduling',
+                'compare': '/api/compare/{scheduling,page-replacement,disk}',
                 'health': '/api/health',
             },
         })
@@ -127,6 +137,13 @@ def create_app():
             data.get('num_processes', 3), data.get('num_resources', 3),
             data.get('allocation'), data.get('max'), data.get('available')))
 
+    @app.route('/api/bankers/request', methods=['POST'])
+    def api_bankers_request():
+        data = json_body()
+        return jsonify(bankers.request_resources(
+            data.get('allocation'), data.get('max'), data.get('available'),
+            data.get('process'), data.get('request')))
+
     @app.route('/api/deadlock', methods=['POST'])
     def api_deadlock():
         data = json_body()
@@ -145,6 +162,25 @@ def create_app():
         data = json_body()
         return jsonify(memory_allocation.allocate_memory(
             data.get('blocks'), data.get('processes'), data.get('strategy', 'best')))
+
+    @app.route('/api/disk-scheduling', methods=['POST'])
+    def api_disk_scheduling():
+        data = json_body()
+        return jsonify(disk.simulate(
+            data.get('algorithm', 'fcfs'), data.get('requests'), data.get('head'),
+            data.get('disk_size', 200), data.get('direction', 'up')))
+
+    @app.route('/api/compare/<kind>', methods=['POST'])
+    def api_compare(kind):
+        data = json_body()
+        if kind == 'scheduling':
+            return jsonify(compare.scheduling(data.get('processes'), data.get('time_quantum', 2)))
+        if kind == 'page-replacement':
+            return jsonify(compare.page_replacement(data.get('frames', 3), data.get('page_requests')))
+        if kind == 'disk':
+            return jsonify(compare.disk(data.get('requests'), data.get('head'),
+                                        data.get('disk_size', 200), data.get('direction', 'up')))
+        raise ValidationError(f'Unknown comparison: {kind}')
 
     @app.route('/api/health')
     def health_check():

@@ -103,3 +103,24 @@ def test_cors_opt_in(monkeypatch):
 def test_path_traversal_blocked(client):
     assert client.get('/../backend/app.py').status_code in (400, 404)
     assert client.get('/%2e%2e/backend/app.py').status_code in (400, 404)
+
+
+def test_new_endpoints(client):
+    disk = client.post('/api/disk-scheduling', json={
+        'algorithm': 'sstf', 'requests': [98, 183, 37, 122, 14, 124, 65, 67], 'head': 53})
+    assert disk.get_json()['total_movement'] == 236
+    assert client.post('/api/disk-scheduling', json={'requests': [1]}).status_code == 400
+
+    pp = client.post('/api/scheduling/priority-preemptive', json={'processes': PROCS})
+    assert pp.get_json()['algorithm'] == 'Priority (Preemptive)'
+
+    cmp_ = client.post('/api/compare/scheduling', json={'processes': PROCS})
+    assert len(cmp_.get_json()['results']) == 6
+    assert client.post('/api/compare/page-replacement',
+                       json={'frames': 2, 'page_requests': [1, 2, 3]}).get_json()['success']
+    assert client.post('/api/compare/disk', json={'requests': [5, 9], 'head': 1}).get_json()['best']
+    assert client.post('/api/compare/nope', json={}).status_code == 400
+
+    req = client.post('/api/bankers/request', json={
+        'allocation': [[1]], 'max': [[3]], 'available': [2], 'process': 1, 'request': [1]})
+    assert req.get_json()['granted'] is True
