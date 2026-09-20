@@ -1,5 +1,6 @@
 import { post } from '../api.js';
 import { clear, debounce, h } from '../dom.js';
+import { PSEUDO, pseudocode } from '../pseudo.js';
 import { randomPages } from '../random.js';
 import { parseInts, store } from '../store.js';
 import { button, card, field, metricTiles, notice, numberInput, player, segmented } from '../ui.js';
@@ -66,6 +67,11 @@ export default {
         function draw(data) {
             root.result = data;
             const grid = slotGrid(data);
+            const key = algorithm;
+            const lines = [...PSEUDO.paging.common];
+            lines[1] += PSEUDO.paging.hit[key] ? PSEUDO.paging.hit[key].replace(' (', ' (') : '';
+            lines[4] = `        else: ${PSEUDO.paging.victim[key]}`;
+            const code = pseudocode(lines);
             const host = h('div', { class: 'chart-scroll' });
             const line = h('div', { class: 'now' });
             const render = (upTo) => {
@@ -81,7 +87,7 @@ export default {
                             const value = grid[i].slots[f];
                             return h('td', { class: grid[i].changed === f ? 'loaded' : '' },
                                 value == null ? '' : value,
-                                data.algorithm === 'Clock' && data.steps[i].hand === f ? h('sup', { class: 'hand', title: 'clock hand' }, '▸') : null,
+                                data.algorithm === 'Clock' && data.steps[i].hand === f ? h('sup', { class: 'hand', title: 'clock hand' }) : null,
                                 data.algorithm === 'Clock' && value != null ? h('sub', { class: 'refbit', title: 'reference bit' }, data.steps[i].reference_bits[f]) : null);
                         })));
                 }
@@ -91,6 +97,7 @@ export default {
                 t.append(body);
                 clear(host).append(t);
                 const s = data.steps[upTo - 1];
+                code.set(!s ? [] : !s.page_fault ? [0, 1] : s.replaced_page == null ? [0, 2, 3, 5] : [0, 2, 4, 5]);
                 clear(line).append(h('span', null, upTo === 0 ? 'Press play to step through the reference string.' : `Step ${upTo}: ${s.description}`));
             };
             const controls = player({ count: data.steps.length, onFrame: render, interval: 650 });
@@ -101,9 +108,11 @@ export default {
                     { label: 'Hit ratio', value: `${(data.hit_ratio * 100).toFixed(1)}%` },
                     { label: 'Fault ratio', value: `${(data.fault_ratio * 100).toFixed(1)}%` },
                 ]),
-                card('Frames over time', [h('p', { class: 'legend' },
-                    h('span', { class: 'lg lg-req' }, 'page loaded'), h('span', { class: 'lg lg-hit' }, 'hit'), h('span', { class: 'lg lg-fault' }, 'fault')),
-                host, line, controls]));
+                h('div', { class: 'playback' },
+                    card('Frames over time', [h('p', { class: 'legend' },
+                        h('span', { class: 'lg lg-req' }, 'page loaded'), h('span', { class: 'lg lg-hit' }, 'hit'), h('span', { class: 'lg lg-fault' }, 'fault')),
+                    host, line, controls]),
+                    card('Pseudocode', code)));
         }
 
         root.append(h('div', { class: 'split' },

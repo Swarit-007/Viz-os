@@ -1,6 +1,9 @@
-import { diskPath, gantt, barChart, graph } from '../charts.js';
+import { barChart, diskPath, gantt, graph, lanes } from '../charts.js';
 import { clear, h } from '../dom.js';
 import { chip, procStyle } from '../ui.js';
+import { memoryBar } from './buddy.js';
+import { diskGrid } from './files.js';
+import { tableSvg } from './sync.js';
 
 // Sample data for the previews below. These render with the same chart code the tools use.
 const RR = {
@@ -15,7 +18,38 @@ const DISK = {
     steps: DISK_PATH.slice(1).map((to, i) => ({ from: DISK_PATH[i], to, distance: Math.abs(to - DISK_PATH[i]), jump: false, serviced: true })),
 };
 
+const LANE_SAMPLE = {
+    totalTime: 12,
+    lanes: [
+        { label: 'Queue 1', slices: [['P1', 0, 2], ['P2', 2, 2], ['P3', 4, 2]].map(([name, startTime, duration]) => ({ name, startTime, duration })) },
+        { label: 'Queue 2', slices: [['P1', 6, 4], ['P2', 10, 2]].map(([name, startTime, duration]) => ({ name, startTime, duration })) },
+    ],
+};
+const CORE_SAMPLE = {
+    totalTime: 12,
+    lanes: [
+        { label: 'Core 1', slices: [['P1', 0, 7], ['P3', 7, 5]].map(([name, startTime, duration]) => ({ name, startTime, duration })) },
+        { label: 'Core 2', slices: [['P2', 1, 4], ['P4', 5, 6]].map(([name, startTime, duration]) => ({ name, startTime, duration })) },
+    ],
+};
+const TABLE_SAMPLE = {
+    deadlock: false,
+    philosophers: [
+        { id: 1, state: 'eating', holding: [1, 2] }, { id: 2, state: 'hungry', holding: [] }, { id: 3, state: 'eating', holding: [3, 4] },
+        { id: 4, state: 'thinking', holding: [] }, { id: 5, state: 'hungry', holding: [5] },
+    ],
+    forks: [{ id: 1, owner: 1 }, { id: 2, owner: 1 }, { id: 3, owner: 3 }, { id: 4, owner: 3 }, { id: 5, owner: 5 }],
+};
 const previews = {
+    mlfq: () => lanes(LANE_SAMPLE),
+    multicore: () => lanes(CORE_SAMPLE),
+    sync: () => tableSvg(TABLE_SAMPLE, 5),
+    buddy: () => memoryBar([
+        { start: 0, size: 128, status: 'used', name: 'A', requested: 100 }, { start: 128, size: 64, status: 'used', name: 'C', requested: 64 },
+        { start: 192, size: 64, status: 'free', name: null, requested: 0 }, { start: 256, size: 256, status: 'used', name: 'B', requested: 240 },
+        { start: 512, size: 512, status: 'free', name: null, requested: 0 }], 1024),
+    files: () => diskGrid('contiguous', [
+        { name: 'A', blocks: [4, 5, 6, 7] }, { name: 'B', blocks: [12, 13, 14] }], 24, [0, 1, 9, 10, 18], 2),
     cpu: () => gantt(RR),
     disk: () => diskPath(DISK).cloneNode(true),
     paging: () => {
@@ -40,7 +74,10 @@ const previews = {
         { label: 'FIFO', value: 15 }, { label: 'LRU', value: 12 }, { label: 'Optimal', value: 9, best: true },
     ]),
 };
-const LAYOUT = { cpu: 'span-7', disk: 'span-5', paging: 'span-5', alloc: 'span-7', bankers: 'span-6', deadlock: 'span-6', compare: 'span-12' };
+const LAYOUT = {
+    cpu: 'span-7', mlfq: 'span-5', multicore: 'span-5', sync: 'span-7', disk: 'span-7', files: 'span-5',
+    paging: 'span-4', alloc: 'span-4', buddy: 'span-4', bankers: 'span-6', deadlock: 'span-6', compare: 'span-12',
+};
 
 function liveDemo() {
     const chartHost = h('div', { class: 'demo-chart' });

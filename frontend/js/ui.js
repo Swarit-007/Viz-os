@@ -1,4 +1,5 @@
 import { clear, h, svg } from './dom.js';
+import { icon } from './icons.js';
 
 // Deterministic per-process hue so P1 keeps its colour across every chart.
 export function hueFor(id) {
@@ -17,12 +18,23 @@ export function chip(id) {
     return h('span', { class: 'chip proc', style: procStyle(id) }, id);
 }
 
+// A single strip of figures, divided by hairlines. Denser and calmer than separate tiles.
 export function metricTiles(items) {
-    return h('div', { class: 'tiles' }, items.map(({ label, value, hint, tone }) =>
-        h('div', { class: `tile ${tone ? `tile-${tone}` : ''}` },
-            h('div', { class: 'tile-value' }, value),
-            h('div', { class: 'tile-label' }, label),
-            hint ? h('div', { class: 'tile-hint' }, hint) : null)));
+    return h('dl', { class: 'stats' }, items.map(({ label, value, hint, tone }) =>
+        h('div', { class: `stat ${tone ? `stat-${tone}` : ''}` },
+            h('dt', null, label),
+            h('dd', null, value, hint ? h('small', null, hint) : null))));
+}
+
+// Placeholder shown while the first result loads.
+export function skeleton(rows = 3) {
+    return h('div', { class: 'skeleton', 'aria-hidden': 'true' },
+        h('div', { class: 'sk sk-stats' }), Array.from({ length: rows }, () => h('div', { class: 'sk sk-card' })));
+}
+
+// Inline tabs (a segmented control that also toggles which panel is shown).
+export function tabs(items, initial, onChange, label) {
+    return segmented(items, initial, onChange, label);
 }
 
 export function table(headers, rows, { compact = true } = {}) {
@@ -105,8 +117,7 @@ export function player({ count, onFrame, initial = count, interval = 700 }) {
         onInput: (e) => { stop(); go(Number(e.target.value)); },
     });
     const label = h('span', { class: 'player-label' });
-    const playBtn = h('button', { type: 'button', class: 'btn btn-secondary btn-sm', onClick: toggle }, 'Play');
-
+    const playBtn = h('button', { type: 'button', class: 'btn btn-secondary btn-icon', 'aria-label': 'Play', onClick: toggle }, icon('play'));
     function go(next) {
         frame = Math.max(0, Math.min(count, next));
         slider.value = frame;
@@ -116,12 +127,14 @@ export function player({ count, onFrame, initial = count, interval = 700 }) {
     function stop() {
         clearInterval(timer);
         timer = null;
-        playBtn.textContent = 'Play';
+        playBtn.replaceChildren(icon('play'));
+        playBtn.setAttribute('aria-label', 'Play');
     }
     function toggle() {
         if (timer) return stop();
         if (frame >= count) go(0);
-        playBtn.textContent = 'Pause';
+        playBtn.replaceChildren(icon('pause'));
+        playBtn.setAttribute('aria-label', 'Pause');
         timer = setInterval(() => {
             if (frame >= count) return stop();
             go(frame + 1);
@@ -129,10 +142,10 @@ export function player({ count, onFrame, initial = count, interval = 700 }) {
     }
     const el = h('div', { class: 'player' },
         playBtn,
-        h('button', { type: 'button', class: 'btn btn-secondary btn-sm', 'aria-label': 'Previous step',
-            onClick: () => { stop(); go(frame - 1); } }, '‹'),
-        h('button', { type: 'button', class: 'btn btn-secondary btn-sm', 'aria-label': 'Next step',
-            onClick: () => { stop(); go(frame + 1); } }, '›'),
+        h('button', { type: 'button', class: 'btn btn-secondary btn-icon', 'aria-label': 'Previous step',
+            onClick: () => { stop(); go(frame - 1); } }, icon('prev')),
+        h('button', { type: 'button', class: 'btn btn-secondary btn-icon', 'aria-label': 'Next step',
+            onClick: () => { stop(); go(frame + 1); } }, icon('next')),
         slider, label);
     el.stop = stop;
     el.toggle = toggle;
@@ -197,12 +210,14 @@ export function vectorEditor({ title, colLabel, onChange }) {
 
 export { svg };
 
-// Replay the entrance animation on a results container (first render, or after Randomise).
+// Brief opacity dip on a results container: feedback that Randomise produced a new result.
 export function replayEnter(el) {
     if (!el) return;
-    el.classList.add('enter');
-    clearTimeout(el._enterTimer);
-    el._enterTimer = setTimeout(() => el.classList.remove('enter'), 1100);
+    el.classList.remove('refresh');
+    void el.offsetWidth;
+    el.classList.add('refresh');
+    clearTimeout(el._refreshTimer);
+    el._refreshTimer = setTimeout(() => el.classList.remove('refresh'), 400);
 }
 
 // Download JSON as a file.

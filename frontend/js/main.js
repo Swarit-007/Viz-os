@@ -1,15 +1,21 @@
 import { clear, h } from './dom.js';
-import { downloadJSON, replayEnter } from './ui.js';
+import { icon } from './icons.js';
+import { downloadJSON, replayEnter, skeleton } from './ui.js';
 import alloc from './views/alloc.js';
 import banker from './views/banker.js';
+import buddy from './views/buddy.js';
 import compare from './views/compare.js';
 import cpu from './views/cpu.js';
 import deadlock from './views/deadlock.js';
 import disk from './views/disk.js';
+import files from './views/files.js';
 import home from './views/home.js';
+import mlfq from './views/mlfq.js';
+import multicore from './views/multicore.js';
 import paging from './views/paging.js';
+import sync from './views/sync.js';
 
-const views = [home, cpu, disk, paging, alloc, banker, deadlock, compare];
+const views = [home, cpu, mlfq, multicore, sync, disk, files, paging, alloc, buddy, banker, deadlock, compare];
 const byId = new Map(views.map((v) => [v.id, v]));
 const panels = new Map();
 
@@ -44,6 +50,7 @@ function show(id) {
         main.append(panel);
         panels.set(view.id, panel);
         view.mount(panel, { views });
+        for (const r of panel.querySelectorAll('.results')) if (!r.children.length) r.append(skeleton());
     } else if (panels.get(view.id).sync) {
         panels.get(view.id).sync();
     }
@@ -77,6 +84,17 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 });
 document.getElementById('nav-toggle').addEventListener('click', () => document.body.classList.toggle('nav-open'));
 
+randomBtn.prepend(icon('shuffle'));
+exportBtn.prepend(icon('download'));
+document.getElementById('nav-toggle').replaceChildren(icon('menu', 18));
+const themeBtn = document.getElementById('theme-toggle');
+const paintTheme = () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    themeBtn.replaceChildren(icon(dark ? 'sun' : 'moon'), dark ? 'Light theme' : 'Dark theme');
+};
+paintTheme();
+themeBtn.addEventListener('click', paintTheme);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintTheme);
 buildNav();
 addEventListener('hashchange', route);
 route();

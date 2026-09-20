@@ -1,7 +1,7 @@
 import { svg } from './dom.js';
 import { procStyle } from './ui.js';
 
-const W = 960;
+const W = 760;
 
 // Gantt chart. `now` (optional) dims everything after that time and draws a playhead.
 export function gantt(data, { now = null, compact = false } = {}) {
@@ -179,6 +179,49 @@ export function graph(nodes, edges, { height = 320, layout = 'circle', arrow = t
             ? svg('rect', { x: p.x - r, y: p.y - r, width: r * 2, height: r * 2, rx: 6, class: 'node node-res' })
             : svg('circle', { cx: p.x, cy: p.y, r, class: `node ${n.tone === 'bad' ? 'node-bad' : 'node-proc'}` });
         root.append(shape, svg('text', { class: 'node-label', x: p.x, y: p.y + 5, 'text-anchor': 'middle' }, n.label));
+    }
+    return root;
+}
+
+// Swim-lane chart: one row per lane (queue level or CPU core). Slices are coloured by process.
+export function lanes({ lanes: rows, totalTime, now = null }) {
+    const labelW = 92;
+    const padR = 14;
+    const rowH = 40;
+    const total = Math.max(totalTime, 1);
+    const unit = (W - labelW - padR) / total;
+    const height = rows.length * rowH + 34;
+    const root = svg('svg', { class: 'chart lanes', viewBox: `0 0 ${W} ${height}`, role: 'img',
+        'aria-label': `${rows.length} lanes over ${total} time units` });
+
+    rows.forEach((row, r) => {
+        const y = r * rowH + 4;
+        root.append(
+            svg('rect', { class: 'lane-bg', x: labelW, y, width: W - labelW - padR, height: rowH - 8, rx: 2 }),
+            svg('text', { class: 'lane-label', x: labelW - 12, y: y + rowH / 2 + 1, 'text-anchor': 'end' }, row.label));
+        row.slices.forEach((s) => {
+            const x = labelW + s.startTime * unit;
+            const w = Math.max(s.duration * unit - 1, 1);
+            const dim = now != null && s.startTime >= now;
+            const g = svg('g', { class: `slice proc ${dim ? 'dim' : ''}`, style: procStyle(s.name) },
+                svg('title', null, `${s.name}: ${s.startTime} to ${s.startTime + s.duration}`),
+                svg('rect', { class: 'slice-rect', x, y, width: w, height: rowH - 8, rx: 2 }));
+            if (w > 16) g.append(svg('text', { class: 'slice-label', x: x + w / 2, y: y + rowH / 2 + 1, 'text-anchor': 'middle' }, s.name));
+            root.append(g);
+        });
+    });
+
+    const axisY = rows.length * rowH + 14;
+    let lastX = -100;
+    const step = total <= 30 ? 1 : total <= 80 ? 5 : 10;
+    for (let t = 0; t <= total; t += step) {
+        const x = labelW + t * unit;
+        root.append(svg('line', { class: 'tick', x1: x, x2: x, y1: axisY - 8, y2: axisY - 3 }));
+        if (x - lastX > 24) { root.append(svg('text', { class: 'tick-label', x, y: axisY + 10, 'text-anchor': 'middle' }, t)); lastX = x; }
+    }
+    if (now != null) {
+        const x = labelW + now * unit;
+        root.append(svg('line', { class: 'playhead', x1: x, x2: x, y1: 0, y2: rows.length * rowH }));
     }
     return root;
 }

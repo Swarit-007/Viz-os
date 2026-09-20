@@ -1,6 +1,7 @@
 import { post } from '../api.js';
 import { diskPath } from '../charts.js';
 import { clear, debounce, h } from '../dom.js';
+import { PSEUDO, pseudocode } from '../pseudo.js';
 import { randomDisk } from '../random.js';
 import { parseInts, store } from '../store.js';
 import { button, card, field, metricTiles, notice, numberInput, player, segmented, table } from '../ui.js';
@@ -33,7 +34,7 @@ export default {
         const errors = notice();
         const results = h('div', { class: 'results' });
         const note = h('p', { class: 'note' }, NOTES[algorithm]);
-        const dirPicker = segmented([{ value: 'up', label: 'Up ↑' }, { value: 'down', label: 'Down ↓' }], d.direction,
+        const dirPicker = segmented([{ value: 'up', label: 'Up' }, { value: 'down', label: 'Down' }], d.direction,
             (v) => { d.direction = v; run(); }, 'Direction');
         const dirField = field('Sweep direction', dirPicker, 'For SCAN family');
         const headInput = numberInput({ value: d.head, min: 0, label: 'Head', onInput: (v) => { d.head = v; run(); } });
@@ -67,11 +68,18 @@ export default {
             root.result = data;
             const host = h('div', { class: 'chart-scroll' });
             const line = h('div', { class: 'now' });
+            const spec = PSEUDO.disk[algorithm];
+            const code = pseudocode(spec.lines);
             const controls = player({
                 count: data.steps.length, interval: 600,
                 onFrame: (i) => {
                     clear(host).append(diskPath(data, { upTo: i }));
                     const s = data.steps[i - 1];
+                    if (!s) code.set([]);
+                    else {
+                        const kind = s.jump ? 'jump' : s.serviced ? 'serviced' : 'edge';
+                        code.set([...(spec.roles.select || []), ...(spec.roles.move || []), ...(spec.roles[kind] || [])]);
+                    }
                     clear(line).append(h('span', null, i === 0 ? `Head starts at ${data.head}`
                         : `Step ${i}: ${s.from} → ${s.to} (${s.distance} cylinders${s.jump ? ', return jump' : ''})`));
                 },
@@ -82,10 +90,12 @@ export default {
                     { label: 'Average seek', value: data.average_seek.toFixed(2), hint: 'per request' },
                     ...(data.jump_movement ? [{ label: 'Of which return jump', value: data.jump_movement }] : []),
                 ]),
-                card('Head movement', [h('p', { class: 'legend' },
-                    h('span', { class: 'lg lg-head' }, 'start'), h('span', { class: 'lg lg-req' }, 'request serviced'),
-                    h('span', { class: 'lg lg-edge' }, 'disk edge'), h('span', { class: 'lg lg-jump' }, 'return jump')),
-                host, line, controls]),
+                h('div', { class: 'playback' },
+                    card('Head movement', [h('p', { class: 'legend' },
+                        h('span', { class: 'lg lg-head' }, 'start'), h('span', { class: 'lg lg-req' }, 'request serviced'),
+                        h('span', { class: 'lg lg-edge' }, 'disk edge'), h('span', { class: 'lg lg-jump' }, 'return jump')),
+                    host, line, controls]),
+                    card('Pseudocode', code)),
                 card('Service order', table(['#', 'From', 'To', 'Distance', 'Note'],
                     data.steps.map((s, i) => [i + 1, s.from, s.to, s.distance,
                         s.jump ? 'return jump' : s.serviced ? 'serviced' : 'disk edge']))),

@@ -38,8 +38,16 @@ export function svg(tag, attrs, ...children) {
     return el;
 }
 
+// Empty an element. Its append() is replaced with a version that skips null, false and nested arrays,
+// so views can write `clear(el).append(cond ? node : null)` without printing "null".
 export function clear(el) {
     while (el.firstChild) el.removeChild(el.firstChild);
+    if (!el._safeAppend) {
+        el._safeAppend = true;
+        const native = Element.prototype.append;
+        el.append = (...children) => native.call(el, ...children.flat(Infinity)
+            .filter((c) => c != null && c !== false).map((c) => (c instanceof Node ? c : String(c))));
+    }
     return el;
 }
 
