@@ -30,3 +30,10 @@ def test_no_innerhtml_in_frontend():
     """All dynamic text must go through text nodes (XSS-safe by construction)."""
     for path in js_files():
         assert 'innerHTML' not in open(path, encoding='utf-8').read(), path
+
+
+def test_vercel_entrypoint_exposes_app():
+    """api/index.py must keep a module-level `app` (an unused-import cleanup once removed it)."""
+    path = os.path.join(ROOT, '..', 'api', 'index.py')
+    source = open(path, encoding='utf-8').read()
+    assert re.search(r'^from backend\.app import app\b', source, re.M)
