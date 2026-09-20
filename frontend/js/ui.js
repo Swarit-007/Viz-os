@@ -135,6 +135,8 @@ export function player({ count, onFrame, initial = count, interval = 700 }) {
             onClick: () => { stop(); go(frame + 1); } }, '›'),
         slider, label);
     el.stop = stop;
+    el.toggle = toggle;
+    el.step = (d) => { stop(); go(frame + d); };
     go(frame);
     return el;
 }
@@ -194,3 +196,21 @@ export function vectorEditor({ title, colLabel, onChange }) {
 }
 
 export { svg };
+
+// Replay the entrance animation on a results container (first render, or after Randomise).
+export function replayEnter(el) {
+    if (!el) return;
+    el.classList.add('enter');
+    clearTimeout(el._enterTimer);
+    el._enterTimer = setTimeout(() => el.classList.remove('enter'), 1100);
+}
+
+// Download JSON as a file.
+export function downloadJSON(name, data) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = h('a', { href: URL.createObjectURL(blob), download: name });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}

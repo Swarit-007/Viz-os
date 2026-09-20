@@ -26,17 +26,17 @@ export function gantt(data, { now = null, compact = false } = {}) {
         cursor = Math.max(cursor, s.startTime + s.duration);
     }
     for (const [a, b] of gaps) {
-        root.append(svg('rect', { class: 'idle', x: padL + a * unit, y: barY, width: (b - a) * unit, height: barH, rx: 4 }));
+        root.append(svg('rect', { class: 'idle', x: padL + a * unit, y: barY, width: (b - a) * unit, height: barH, rx: 2 }));
     }
 
-    for (const s of slices) {
+    for (const [index, s] of slices.entries()) {
         const x = padL + s.startTime * unit;
         const w = s.duration * unit;
         const dim = now != null && s.startTime >= now;
         const partial = now != null && s.startTime < now && s.startTime + s.duration > now;
-        const g = svg('g', { class: `slice proc ${dim ? 'dim' : ''}`, style: procStyle(s.name) },
+        const g = svg('g', { class: `slice proc ${dim ? 'dim' : ''}`, style: { ...procStyle(s.name), '--i': index } },
             svg('title', null, `${s.name}: ${s.startTime} → ${s.startTime + s.duration}`),
-            svg('rect', { x, y: barY, width: Math.max(w - 1, 1), height: barH, rx: 4, class: 'slice-rect' }));
+            svg('rect', { x, y: barY, width: Math.max(w - 1, 1), height: barH, rx: 2, class: 'slice-rect' }));
         if (w > 18) {
             g.append(svg('text', { x: x + w / 2, y: barY + barH / 2 + 5, class: 'slice-label',
                 'text-anchor': 'middle' }, s.name));
@@ -78,7 +78,7 @@ export function barChart(items, { format = (v) => v, lowerIsBetter = true } = {}
         const w = Math.max((item.value / max) * barMax, 2);
         root.append(
             svg('text', { class: 'bar-label', x: labelW - 12, y: y + 20, 'text-anchor': 'end' }, item.label),
-            svg('rect', { class: `bar ${item.best ? 'bar-best' : ''}`, x: labelW, y, width: w, height: rowH - 10, rx: 4 }),
+            svg('rect', { class: `bar ${item.best ? 'bar-best' : ''}`, x: labelW, y, width: w, height: rowH - 10, rx: 2, style: { '--i': i } }),
             svg('text', { class: 'bar-value', x: labelW + w + 8, y: y + 20 }, format(item.value)),
         );
     });

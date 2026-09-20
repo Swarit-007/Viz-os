@@ -1,6 +1,7 @@
 import { post } from '../api.js';
 import { graph } from '../charts.js';
 import { clear, debounce, h } from '../dom.js';
+import { randomDeadlock } from '../random.js';
 import { badge, button, card, chip, field, matrixEditor, notice, numberInput, table, vectorEditor } from '../ui.js';
 
 const PRESETS = {
@@ -51,6 +52,7 @@ export default {
         }, 250);
 
         function draw(data) {
+            root.result = data;
             const g = data.waitForGraph;
             const nodes = g.processes.map((p) => ({ id: p.id, label: p.name, tone: p.isDeadlocked ? 'bad' : 'ok' }));
             const edges = g.edges.map((e) => ({ from: e.from, to: e.to, label: e.label }));
@@ -64,7 +66,7 @@ export default {
                     graph(nodes, edges, { height: 340 })]),
                 card('Detection trace', table(['Round', 'Work', 'Finished this round'],
                     data.steps.map((s, i) => (s.initializedFinished
-                        ? ['init', '—', s.initializedFinished.length ? `${s.initializedFinished.join(', ')} (hold nothing)` : 'none']
+                        ? ['init', '-', s.initializedFinished.length ? `${s.initializedFinished.join(', ')} (hold nothing)` : 'none']
                         : [i, `[${s.work.join(', ')}]`, s.allocated.length ? s.allocated.join(', ') : 'no progress'])))));
         }
 
@@ -74,10 +76,14 @@ export default {
                     h('div', { class: 'grid-2' }, field('Processes', sizeN), field('Resource types', sizeM)),
                     allocation, request, available,
                     h('div', { class: 'btn-row' },
+                        button('Randomise', () => random(), 'secondary'),
                         button('Deadlock example', () => { build(PRESETS.deadlock); run(); }, 'ghost'),
                         button('Safe example', () => { build(PRESETS.safe); run(); }, 'ghost'))]),
                 errors),
             results));
+        function random() { build(randomDeadlock()); run(); }
+        root.random = random;
+        root.sync = () => run();
         build(PRESETS.deadlock);
         run();
     },

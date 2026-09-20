@@ -1,6 +1,7 @@
 import { post } from '../api.js';
 import { barChart, gantt } from '../charts.js';
 import { clear, debounce, h } from '../dom.js';
+import { randomDisk, randomPages, randomProcesses } from '../random.js';
 import { store } from '../store.js';
 import { badge, card, metricTiles, notice, segmented, table } from '../ui.js';
 
@@ -45,6 +46,7 @@ export default {
         }, 100);
 
         function draw(data) {
+            root.result = data;
             const best = data.best.join(' and ');
             const rows = data.results;
             clear(source).append(`Comparing on ${SOURCE[mode]}. `, h('a', { href: `#/${EDIT_VIEW[mode]}` }, 'Edit inputs →'));
@@ -83,7 +85,13 @@ export default {
 
         const picker = segmented(MODES, mode, (v) => { mode = v; run(); }, 'Comparison type');
         root.append(h('div', { class: 'stack' }, card('Compare algorithms', [picker, source]), errors, results));
-        root.refresh = run; // inputs may have changed in other views
+        root.random = () => {
+            if (mode === 'scheduling') store.processes = randomProcesses();
+            else if (mode === 'page-replacement') Object.assign(store, randomPages());
+            else Object.assign(store.disk, randomDisk());
+            run();
+        };
+        root.sync = run; // inputs may have changed in other views
         run();
     },
 };

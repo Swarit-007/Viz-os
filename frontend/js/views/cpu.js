@@ -1,6 +1,7 @@
 import { post } from '../api.js';
 import { gantt } from '../charts.js';
 import { clear, debounce, h } from '../dom.js';
+import { randomProcesses } from '../random.js';
 import { store } from '../store.js';
 import { button, card, chip, field, metricTiles, notice, numberInput, player, segmented, table } from '../ui.js';
 
@@ -32,10 +33,11 @@ export default {
         const errors = notice();
         const results = h('div', { class: 'results' });
         const rowsEl = h('div', { class: 'proc-rows' });
-        const quantumField = field('Time quantum', numberInput({
+        const quantumInput = numberInput({
             value: store.quantum, min: 1, label: 'Time quantum',
             onInput: (v) => { store.quantum = v; run(); },
-        }));
+        });
+        const quantumField = field('Time quantum', quantumInput);
         const note = h('p', { class: 'note' });
 
         const renumber = () => store.processes.forEach((p, i) => { p.id = `P${i + 1}`; });
@@ -67,11 +69,9 @@ export default {
             renderRows(); run();
         }
         function random() {
-            const n = 4 + Math.floor(Math.random() * 3);
-            store.processes = Array.from({ length: n }, (_, i) => ({
-                id: `P${i + 1}`, arrival: Math.floor(Math.random() * 8),
-                burst: 1 + Math.floor(Math.random() * 9), priority: 1 + Math.floor(Math.random() * 5),
-            }));
+            store.processes = randomProcesses();
+            store.quantum = 2 + Math.floor(Math.random() * 3);
+            quantumInput.value = store.quantum;
             renderRows(); run();
         }
 
@@ -90,6 +90,7 @@ export default {
         }, 200);
 
         function draw(data) {
+            root.result = data;
             const m = data.metrics;
             const total = data.ganttChart.totalTime;
             const chartHost = h('div', { class: 'chart-scroll' });
@@ -153,6 +154,8 @@ export default {
                         button('Randomise', random, 'ghost'))]),
                 errors),
             results));
+        root.random = random;
+        root.sync = () => { quantumInput.value = store.quantum; renderRows(); run(); };
         run();
     },
 };

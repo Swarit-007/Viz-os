@@ -1,6 +1,7 @@
 import { post } from '../api.js';
 import { diskPath } from '../charts.js';
 import { clear, debounce, h } from '../dom.js';
+import { randomDisk } from '../random.js';
 import { parseInts, store } from '../store.js';
 import { button, card, field, metricTiles, notice, numberInput, player, segmented, table } from '../ui.js';
 
@@ -32,9 +33,9 @@ export default {
         const errors = notice();
         const results = h('div', { class: 'results' });
         const note = h('p', { class: 'note' }, NOTES[algorithm]);
-        const dirField = field('Sweep direction', segmented(
-            [{ value: 'up', label: 'Up ↑' }, { value: 'down', label: 'Down ↓' }], d.direction,
-            (v) => { d.direction = v; run(); }, 'Direction'), 'For SCAN family');
+        const dirPicker = segmented([{ value: 'up', label: 'Up ↑' }, { value: 'down', label: 'Down ↓' }], d.direction,
+            (v) => { d.direction = v; run(); }, 'Direction');
+        const dirField = field('Sweep direction', dirPicker, 'For SCAN family');
         const headInput = numberInput({ value: d.head, min: 0, label: 'Head', onInput: (v) => { d.head = v; run(); } });
         const sizeInput = numberInput({ value: d.size, min: 2, label: 'Cylinders', onInput: (v) => { d.size = v; run(); } });
         const requests = h('input', {
@@ -44,6 +45,12 @@ export default {
                 if (values) { d.requests = values; run(); } else errors.show('Requests must be whole numbers separated by spaces or commas.');
             },
         });
+
+        const syncInputs = () => {
+            requests.value = d.requests.join(' '); headInput.value = d.head; sizeInput.value = d.size;
+            dirPicker.set(d.direction);
+        };
+        function random() { Object.assign(d, randomDisk()); syncInputs(); run(); }
 
         const run = debounce(async () => {
             if (!Number.isInteger(d.head) || !Number.isInteger(d.size)) { errors.show('Head and disk size must be whole numbers.'); return; }
@@ -57,6 +64,7 @@ export default {
         }, 200);
 
         function draw(data) {
+            root.result = data;
             const host = h('div', { class: 'chart-scroll' });
             const line = h('div', { class: 'now' });
             const controls = player({
@@ -99,13 +107,12 @@ export default {
                             Object.assign(d, { requests: [98, 183, 37, 122, 14, 124, 65, 67], head: 53, size: 200, direction: 'up' });
                             requests.value = d.requests.join(' '); headInput.value = d.head; sizeInput.value = d.size; run();
                         }, 'ghost'),
-                        button('Randomise', () => {
-                            d.requests = Array.from({ length: 8 }, () => Math.floor(Math.random() * d.size));
-                            requests.value = d.requests.join(' '); run();
-                        }, 'ghost'))]),
+                        button('Randomise', random, 'ghost'))]),
                 errors),
             results));
         dirField.hidden = algorithm === 'fcfs' || algorithm === 'sstf';
+        root.random = random;
+        root.sync = () => { syncInputs(); run(); };
         run();
     },
 };

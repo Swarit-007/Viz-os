@@ -1,5 +1,6 @@
 import { post } from '../api.js';
 import { clear, debounce, h } from '../dom.js';
+import { randomMemory } from '../random.js';
 import { parseInts } from '../store.js';
 import { button, card, field, metricTiles, notice, procStyle, segmented, table } from '../ui.js';
 
@@ -35,6 +36,11 @@ export default {
         const blocksInput = h('input', { type: 'text', value: blocks.join(' '), spellcheck: 'false', 'aria-label': 'Block sizes', onInput: parse((v) => { blocks = v; }) });
         const procsInput = h('input', { type: 'text', value: procs.join(' '), spellcheck: 'false', 'aria-label': 'Process sizes', onInput: parse((v) => { procs = v; }) });
 
+        function random() {
+            const r = randomMemory(); blocks = r.blocks; procs = r.procs;
+            blocksInput.value = blocks.join(' '); procsInput.value = procs.join(' '); run();
+        }
+
         const run = debounce(async () => {
             try {
                 const data = await post('/api/memory-allocation', { strategy, blocks, processes: procs });
@@ -44,6 +50,7 @@ export default {
         }, 200);
 
         function draw(data) {
+            root.result = data;
             const perBlock = data.blocks.map(() => []);
             data.allocation.forEach((a, i) => { if (a.block) perBlock[a.block - 1].push({ id: `P${i + 1}`, size: a.process }); });
             const largest = Math.max(...data.blocks);
@@ -72,12 +79,14 @@ export default {
                 card('Memory', [
                     field('Block sizes', blocksInput, 'Free partitions, space or comma separated'),
                     field('Process sizes', procsInput, 'Requests, in arrival order'),
-                    h('div', { class: 'btn-row' }, button('Textbook example', () => {
+                    h('div', { class: 'btn-row' }, button('Randomise', random, 'secondary'), button('Textbook example', () => {
                         blocks = [100, 500, 200, 300, 600]; procs = [212, 417, 112, 426];
                         blocksInput.value = blocks.join(' '); procsInput.value = procs.join(' '); run();
                     }, 'ghost'))]),
                 errors),
             results));
+        root.random = random;
+        root.sync = () => run();
         run();
     },
 };

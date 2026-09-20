@@ -1,6 +1,7 @@
 import { post } from '../api.js';
 import { graph } from '../charts.js';
 import { clear, debounce, h } from '../dom.js';
+import { randomBanker } from '../random.js';
 import { badge, button, card, chip, field, matrixEditor, metricTiles, notice, numberInput, table, vectorEditor } from '../ui.js';
 
 const TEXTBOOK = {
@@ -70,7 +71,7 @@ export default {
                         badge(data.granted ? 'Granted' : 'Denied', data.granted ? 'good' : 'bad'),
                         h('span', null, ` ${data.process} requests [${data.request.join(', ')}]. ${data.reason}.`)),
                     data.granted ? h('p', { class: 'note' }, 'Safe sequence after granting: ', data.safeSequence.map((p) => chip(p)),
-                        ' — use “Apply granted request” to carry the new state forward.') : null,
+                        ' Use “Apply granted request” to carry the new state forward.') : null,
                     data.granted ? button('Apply granted request', () => {
                         build({ n, m, allocation: data.allocation, max: max.get(), available: data.available }); run();
                     }, 'secondary') : null);
@@ -78,6 +79,7 @@ export default {
         }
 
         function draw(data) {
+            root.result = data;
             const rag = data.rag;
             const nodes = [
                 ...rag.processes.map((p) => ({ id: p.name, label: p.name, side: 'left' })),
@@ -95,7 +97,7 @@ export default {
                     data.need.map((row, i) => [chip(`P${i + 1}`), ...row]))),
                 card('Safety algorithm trace', table(['Step', 'Work', 'Chosen', 'Released'],
                     data.steps.map((s, i) => [i + 1, `[${s.work.join(', ')}]`, s.chosenProcess ? chip(s.chosenProcess) : h('em', null, data.isSafe ? 'all finished' : 'none can proceed'),
-                        s.chosenProcess ? `[${s.allocationsReleased.join(', ')}]` : '—']))),
+                        s.chosenProcess ? `[${s.allocationsReleased.join(', ')}]` : '-']))),
                 card('Resource allocation graph', [h('p', { class: 'legend' },
                     h('span', { class: 'lg lg-solid' }, 'R → P  allocated'), h('span', { class: 'lg lg-dash' }, 'P → R  remaining need')),
                 graph(nodes, edges, { height: Math.max(320, Math.max(n, m) * 84), layout: 'bipartite' })]));
@@ -108,19 +110,16 @@ export default {
                     allocation, max, available,
                     h('div', { class: 'btn-row' },
                         button('Textbook example', () => { build(TEXTBOOK); run(); }, 'ghost'),
-                        button('Random state', async () => {
-                            try {
-                                const data = await post('/api/bankers', { num_processes: n, num_resources: m });
-                                build({ n, m, allocation: data.allocation, max: data.max, available: data.available });
-                                run();
-                            } catch (e) { errors.show(e.message); }
-                        }, 'ghost'))]),
+                        button('Randomise', random, 'secondary'))]),
                 card('Try a resource request', [
                     h('div', { class: 'grid-2' }, field('Process', processInput), h('span')),
                     requestVec,
                     button('Check request', submitRequest, 'primary'), requestOut]),
                 errors),
             results));
+        function random() { build(randomBanker()); run(); }
+        root.random = random;
+        root.sync = () => run();
         build(TEXTBOOK);
         run();
     },

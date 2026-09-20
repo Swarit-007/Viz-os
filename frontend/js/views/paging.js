@@ -1,5 +1,6 @@
 import { post } from '../api.js';
 import { clear, debounce, h } from '../dom.js';
+import { randomPages } from '../random.js';
 import { parseInts, store } from '../store.js';
 import { button, card, field, metricTiles, notice, numberInput, player, segmented } from '../ui.js';
 
@@ -47,6 +48,12 @@ export default {
             },
         });
 
+        const framesInput = numberInput({ value: store.frames, min: 1, max: 100, label: 'Frames', onInput: (v) => { store.frames = v; run(); } });
+        function random() {
+            const r = randomPages(); store.pages = r.pages; store.frames = r.frames;
+            refs.value = store.pages.join(' '); framesInput.value = store.frames; run();
+        }
+
         const run = debounce(async () => {
             if (!(store.frames >= 1)) { errors.show('Frames must be at least 1.'); return; }
             try {
@@ -57,6 +64,7 @@ export default {
         }, 200);
 
         function draw(data) {
+            root.result = data;
             const grid = slotGrid(data);
             const host = h('div', { class: 'chart-scroll' });
             const line = h('div', { class: 'now' });
@@ -102,7 +110,7 @@ export default {
             h('div', { class: 'controls' },
                 card('Algorithm', [segmented(ALGORITHMS, algorithm, (v) => { algorithm = v; note.textContent = NOTES[v]; run(); }, 'Page replacement algorithm'), note]),
                 card('Reference string', [
-                    field('Frames', numberInput({ value: store.frames, min: 1, max: 100, label: 'Frames', onInput: (v) => { store.frames = v; run(); } })),
+                    field('Frames', framesInput),
                     field('Pages', refs, 'Space or comma separated'),
                     h('div', { class: 'btn-row' },
                         button('Textbook example', () => {
@@ -113,11 +121,11 @@ export default {
                             store.pages = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]; refs.value = store.pages.join(' '); algorithm = 'fifo';
                             root.querySelector('.segmented').set('fifo'); note.textContent = NOTES.fifo; run();
                         }, 'ghost'),
-                        button('Randomise', () => {
-                            store.pages = Array.from({ length: 16 }, () => Math.floor(Math.random() * 7)); refs.value = store.pages.join(' '); run();
-                        }, 'ghost'))]),
+                        button('Randomise', random, 'ghost'))]),
                 errors),
             results));
+        root.random = random;
+        root.sync = () => { refs.value = store.pages.join(' '); framesInput.value = store.frames; run(); };
         run();
     },
 };
